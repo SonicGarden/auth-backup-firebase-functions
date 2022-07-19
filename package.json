@@ -1,5 +1,5 @@
 {
-  "name": "authentication-backup-firebase-functions",
+  "name": "auth-backup-firebase-functions",
   "version": "1.0.0",
   "main": "lib/index.js",
   "exports": {
@@ -8,7 +8,7 @@
   "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/SonicGarden/authentication-backup-firebase-functions.git"
+    "url": "git+ssh://git@github.com/SonicGarden/auth-backup-firebase-functions.git"
   },
   "author": "",
   "license": "MIT",
@@ -16,9 +16,9 @@
     "lib"
   ],
   "bugs": {
-    "url": "https://github.com/SonicGarden/authentication-backup-firebase-functions/issues"
+    "url": "https://github.com/SonicGarden/auth-backup-firebase-functions/issues"
   },
-  "homepage": "https://github.com/SonicGarden/authentication-backup-firebase-functions#readme",
+  "homepage": "https://github.com/SonicGarden/auth-backup-firebase-functions#readme",
   "scripts": {
     "build": "tsc -p tsconfig.release.json",
     "build:release": "npm install --production && npm install --no-save typescript && tsc -p tsconfig.release.json",
