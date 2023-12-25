@@ -1,38 +1,13 @@
-import * as functions from 'firebase-functions';
 import * as kms from '@google-cloud/kms';
 import * as gcs from '@google-cloud/storage';
 import * as firebaseTools from 'firebase-tools';
 import * as fs from 'fs';
 
-export const backupAuth = ({
-  region = 'asia-northeast1',
-  schedule = '0 0 * * *',
-  timeZone = 'Asia/Tokyo',
-  projectId = process.env.GCLOUD_PROJECT,
-  bucketName,
-}: {
-  region?: string;
-  schedule?: string;
-  timeZone?: string;
-  projectId?: string;
-  bucketName?: string;
-}): functions.CloudFunction<unknown> => {
-  const bucket = bucketName || `${projectId}-authentication-backup`;
-  return functions
-    .region(region)
-    .pubsub.schedule(schedule)
-    .timeZone(timeZone)
-    .onRun(async () => {
-      try {
-        await backupAuthToStorage(region, projectId, bucket);
-        console.info('backup authentication, success');
-      } catch (err) {
-        console.error(err);
-      }
-    });
-};
-
-const backupAuthToStorage = async (region: string, projectId: string, bucketName: string) => {
+export const backupAuth = async (
+  region: string,
+  projectId: string,
+  bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backup`
+): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
 
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
