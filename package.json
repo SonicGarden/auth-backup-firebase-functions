@@ -26,18 +26,18 @@
     "prepare": "tsc -p tsconfig.release.json"
   },
   "dependencies": {
-    "@google-cloud/kms": "^3.0.1",
-    "@google-cloud/storage": "^6.2.3",
-    "@types/google-cloud__kms": "^1.5.4",
+    "@google-cloud/kms": "^4.0.1",
+    "@google-cloud/storage": "^7.7.0",
+    "@types/google-cloud__kms": "^1.5.7",
     "@types/google-cloud__storage": "^2.3.1",
-    "firebase-admin": "^9.11.1",
-    "firebase-tools": "^11.3.0"
+    "firebase-admin": "^12.0.0",
+    "firebase-tools": "^13.0.2"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.29.3",
-    "@typescript-eslint/parser": "^4.29.3",
-    "eslint": "^7.32.0",
-    "eslint-config-prettier": "^8.3.0",
-    "typescript": "^4.3.5"
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "typescript": "^5.3.3"
   }
 }
