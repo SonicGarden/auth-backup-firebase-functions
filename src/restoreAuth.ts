@@ -3,9 +3,10 @@ import * as gcs from '@google-cloud/storage';
 import * as firebaseTools from 'firebase-tools';
 import * as fs from 'fs';
 
-export const backupAuth = async (
+export const restoreAuth = async (
   region: string,
   projectId: string,
+  encriptedFilePath: string,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`
 ): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
@@ -15,16 +16,15 @@ export const backupAuth = async (
   const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encripted`;
   console.log(`tmpCiphertextFileName = ${tmpCiphertextFileName}`);
 
-  const gcsDestination = `${new Date().toISOString()}/${plaintextFileName}.encripted`;
-  console.log(`gcsDestination = ${gcsDestination}`);
-
-  // ローカルに取得
-  await firebaseTools.auth.export(tmpPlaintextFileName, { project: projectId });
+  // GCS から ローカルに取得
+  const gcsClient = new gcs.Storage();
+  const bucket = gcsClient.bucket(bucketName);
+  await bucket.file(encriptedFilePath).download({ destination: tmpCiphertextFileName });
 
   // ファイル読み込み
-  const plaintext = fs.readFileSync(tmpPlaintextFileName);
+  const ciphertext = fs.readFileSync(tmpCiphertextFileName);
 
-  // 暗号化
+  // 復号化
   const kmsClient = new kms.KeyManagementServiceClient();
   const keyName = kmsClient.cryptoKeyPath(
     projectId,
@@ -32,13 +32,18 @@ export const backupAuth = async (
     'firebase-authentication-keyring',
     'firebase-authentication-backup-key'
   );
-  const [result] = await kmsClient.encrypt({ name: keyName, plaintext });
-  fs.writeFileSync(tmpCiphertextFileName, result.ciphertext as string);
+  const [result] = await kmsClient.decrypt({
+    name: keyName,
+    ciphertext: ciphertext,
+  });
 
-  // GCS に保存
-  const gcsClient = new gcs.Storage();
-  const bucket = gcsClient.bucket(bucketName);
-  await bucket.upload(tmpCiphertextFileName, { destination: gcsDestination });
+  if (!result.plaintext) {
+    throw new Error('Decrypt Failed.');
+  }
+  fs.writeFileSync(tmpPlaintextFileName, result.plaintext.toString());
+
+  // Authの復元
+  await firebaseTools.auth.upload(tmpPlaintextFileName, { project: projectId });
 
   // ローカルのファイルを削除
   fs.unlinkSync(tmpPlaintextFileName);
