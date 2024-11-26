@@ -3,11 +3,15 @@ import * as gcs from '@google-cloud/storage';
 import * as firebaseTools from 'firebase-tools';
 import * as fs from 'fs';
 
-export const backupAuth = async (
-  region: string,
-  projectId: string,
-  bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`
-): Promise<void> => {
+export const backupAuth = async ({
+  region,
+  projectId = process.env.GCLOUD_PROJECT,
+  bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
+}: {
+  region: string;
+  projectId?: string;
+  bucketName?: string;
+}): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
 
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
