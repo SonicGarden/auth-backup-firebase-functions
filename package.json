@@ -1,5 +1,5 @@
 {
-  "name": "auth-backup-firebase-functions",
+  "name": "@sonicgarden/auth-backup-firebase-functions",
   "version": "1.0.0",
   "main": "lib/index.js",
   "exports": {
