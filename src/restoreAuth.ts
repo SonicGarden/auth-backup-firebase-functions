@@ -1,7 +1,7 @@
-import * as kms from '@google-cloud/kms';
-import * as gcs from '@google-cloud/storage';
-import * as firebaseTools from 'firebase-tools';
-import * as fs from 'fs';
+import { KeyManagementServiceClient } from '@google-cloud/kms';
+import { Storage } from '@google-cloud/storage';
+import { auth } from 'firebase-tools';
+import { readFileSync, unlinkSync, writeFileSync } from 'fs';
 
 export const restoreAuth = async ({
   region,
@@ -22,15 +22,15 @@ export const restoreAuth = async ({
   console.log(`tmpCiphertextFileName = ${tmpCiphertextFileName}`);
 
   // GCS から ローカルに取得
-  const gcsClient = new gcs.Storage();
+  const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
   await bucket.file(encriptedFilePath).download({ destination: tmpCiphertextFileName });
 
   // ファイル読み込み
-  const ciphertext = fs.readFileSync(tmpCiphertextFileName);
+  const ciphertext = readFileSync(tmpCiphertextFileName);
 
   // 復号化
-  const kmsClient = new kms.KeyManagementServiceClient();
+  const kmsClient = new KeyManagementServiceClient();
   const keyName = kmsClient.cryptoKeyPath(
     projectId,
     region,
@@ -45,12 +45,12 @@ export const restoreAuth = async ({
   if (!result.plaintext) {
     throw new Error('Decrypt Failed.');
   }
-  fs.writeFileSync(tmpPlaintextFileName, result.plaintext.toString());
+  writeFileSync(tmpPlaintextFileName, result.plaintext.toString());
 
   // Authの復元
-  await firebaseTools.auth.upload(tmpPlaintextFileName, { project: projectId });
+  await auth.upload(tmpPlaintextFileName, { project: projectId });
 
   // ローカルのファイルを削除
-  fs.unlinkSync(tmpPlaintextFileName);
-  fs.unlinkSync(tmpCiphertextFileName);
+  unlinkSync(tmpPlaintextFileName);
+  unlinkSync(tmpCiphertextFileName);
 };

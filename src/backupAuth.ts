@@ -1,7 +1,7 @@
-import * as kms from '@google-cloud/kms';
-import * as gcs from '@google-cloud/storage';
-import * as firebaseTools from 'firebase-tools';
-import * as fs from 'fs';
+import { KeyManagementServiceClient } from '@google-cloud/kms';
+import { Storage } from '@google-cloud/storage';
+import { auth } from 'firebase-tools';
+import { readFileSync, unlinkSync, writeFileSync } from 'fs';
 
 export const backupAuth = async ({
   region,
@@ -23,13 +23,13 @@ export const backupAuth = async ({
   console.log(`gcsDestination = ${gcsDestination}`);
 
   // ローカルに取得
-  await firebaseTools.auth.export(tmpPlaintextFileName, { project: projectId });
+  await auth.export(tmpPlaintextFileName, { project: projectId });
 
   // ファイル読み込み
-  const plaintext = fs.readFileSync(tmpPlaintextFileName);
+  const plaintext = readFileSync(tmpPlaintextFileName);
 
   // 暗号化
-  const kmsClient = new kms.KeyManagementServiceClient();
+  const kmsClient = new KeyManagementServiceClient();
   const keyName = kmsClient.cryptoKeyPath(
     projectId,
     region,
@@ -37,14 +37,14 @@ export const backupAuth = async ({
     'firebase-authentication-backup-key'
   );
   const [result] = await kmsClient.encrypt({ name: keyName, plaintext });
-  fs.writeFileSync(tmpCiphertextFileName, result.ciphertext as string);
+  writeFileSync(tmpCiphertextFileName, result.ciphertext as string);
 
   // GCS に保存
-  const gcsClient = new gcs.Storage();
+  const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
   await bucket.upload(tmpCiphertextFileName, { destination: gcsDestination });
 
   // ローカルのファイルを削除
-  fs.unlinkSync(tmpPlaintextFileName);
-  fs.unlinkSync(tmpCiphertextFileName);
+  unlinkSync(tmpPlaintextFileName);
+  unlinkSync(tmpCiphertextFileName);
 };
