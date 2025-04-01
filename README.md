@@ -10,53 +10,111 @@ npm install --save @sonicgarden/auth-backup-firebase-functions
 yarn add @sonicgarden/auth-backup-firebase-functions
 ```
 
-$ gcloud services enable cloudkms.googleapis.com
-$ gcloud kms keyrings create --location=asia-northeast1 firebase-authentication-keyring --project sg-ops-firebase-staging
+### Cloud Key Management Service setup
+
+バックアップを KMS で暗号化するための初期設定を行う。
+
+```shell
+$ gcloud services enable cloudkms.googleapis.com --project [PROJECT_ID]
+$ gcloud kms keyrings create --location=asia-northeast1 firebase-authentication-keyring --project [PROJECT_ID]
 $ gcloud kms keys create --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   --purpose=encryption \
   --rotation-period=90d \
-  --next-rotation-time="2022-07-31T00:00:00Z" \
+  --next-rotation-time="yyyy-MM-ddT00:00:00Z" \
   firebase-authentication-backup-key \
-  --project sg-ops-firebase-staging
+  --project [PROJECT_ID]
+```
 
+### Cloud Storage setup
 
+バックアップの保存先である Storage のバケットを作成する。
 
-  $ gcloud kms keys \
+```shell
+$ gcloud storage buckets create gs://[PROJECT_ID]-authentication-backups \
+  --project=[PROJECT_ID] \
+  --default-storage-class=COLDLINE \
+  --location=ASIA \
+  --uniform-bucket-level-access
+```
+
+バケットのライフサイクルの設定を行う。
+「オブジェクトが作成されてから 30 日以降」の条件で、「オブジェクトの削除」をするよう設定する。
+
+```shell
+$ echo "{ \"lifecycle\": { \"rule\": [{ \"action\": { \"type\": \"Delete\" }, \"condition\": { \"age\": 30 } }] } }" > lifecycle.json
+$ gcloud storage buckets update gs://[PROJECT_ID]-authentication-backups --lifecycle-file=lifecycle.json
+```
+
+### Service Account setup
+
+Functions を実行するサービスアカウントを作成します。
+（もしくは Functions を実行する既存のサービスアカウントに以下ロールを付与する）
+
+```shell
+# サービスアカウント作成
+$ gcloud iam service-accounts create backup-auth --display-name="backup-auth" --project [PROJECT_ID]
+
+# 作成したサービスアカウントに「Identity Platform 閲覧者」を付与
+$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
+  --member serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --role roles/identityplatform.viewer
+
+# 作成したサービスアカウントに「Storage オブジェクト作成者」を付与
+$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
+  --member serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --role roles/storage.objectCreator
+
+# 作成したサービスアカウントに「クラウド KMS 暗号鍵の暗号化ロール」を付与
+$ gcloud kms keys \
   add-iam-policy-binding \
   --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   firebase-authentication-backup-key \
-  --member=serviceAccount:sg-ops-firebase-staging@appspot.gserviceaccount.com \
+  --member=serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
   --role=roles/cloudkms.cryptoKeyEncrypter \
-  --project sg-ops-firebase-staging
+  --project [PROJECT_ID]
+```
 
 ## Usage
 
-```js
-import * as authBackup from '@sonicgarden/auth-backup-firebase-functions';
-export backupAuth = authBackup.backupAuth({
-  region: 'asia-northeast1',
-  schedule: '0 0 * * *',
-  timeZone: 'Asia/Tokyo',
-});
+```ts
+import { backupAuth as _backupAuth } from '@sonicgarden/auth-backup-firebase-functions';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 
-//or
-
-const authBackup = require('@sonicgarden/auth-backup-firebase-functions');
-exports.backupAuth = authBackup.backupAuth({
-  region: 'asia-northeast1',
-  schedule: '0 0 * * *',
-  timeZone: 'Asia/Tokyo',
-});
+export const backupAuth = onSchedule(
+  {
+    schedule: '0 1 * * *',
+    region: 'asia-northeast1',
+    timeZone: 'Asia/Tokyo',
+    serviceAccount: 'backup-auth@[PROJECT_ID].iam.gserviceaccount.com',
+  },
+  async (event) => {
+    await _backupAuth({ region: 'asia-northeast1' });
+  }
+);
 ```
 
 ### Parameters
 
 | parameter  | required | default value                       |
-| ---------- | -------- | ------------------------------      |
-| region     | optional | asia-northeast1                     |
-| schedule   | optional | 0 0 \* \* \*                        |
-| timeZone   | optional | Asia/Tokyo                          |
+| ---------- | -------- | ----------------------------------- |
+| region     | required | asia-northeast1                     |
 | projectId  | optional | process.env.GCLOUD_PROJECT          |
 | bucketName | optional | ${projectId}-authentication-backups |
+
+## npm publish
+
+```sh
+git tag -a v1.0.0 -m "My first version v1.0.0"
+git push origin tags/v1.0.0
+npm publish --access=public
+```
+
+### update
+
+```sh
+npm version patch # or minor or magor
+git push origin tags/v1.0.1
+npm publish --access=public
+```
