@@ -5,14 +5,16 @@ import { readFile, unlink, writeFile } from 'fs/promises';
 
 export const restoreAuth = async ({
   region,
-  encriptedFilePath,
+  backupFilePath,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
+  encripted,
 }: {
   region: string;
-  encriptedFilePath: string;
+  backupFilePath: string;
   projectId?: string;
   bucketName?: string;
+  encripted?: boolean;
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
@@ -21,32 +23,38 @@ export const restoreAuth = async ({
   // GCS から ローカルに取得
   const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
-  await bucket.file(encriptedFilePath).download({ destination: tmpCiphertextFileName });
 
-  // ファイル読み込み
-  const ciphertext = await readFile(tmpCiphertextFileName);
+  if (encripted) {
+    await bucket.file(backupFilePath).download({ destination: tmpCiphertextFileName });
+    // ファイル読み込み
+    const ciphertext = await readFile(tmpCiphertextFileName);
 
-  // 復号化
-  const kmsClient = new KeyManagementServiceClient();
-  const keyName = kmsClient.cryptoKeyPath(
-    projectId,
-    region,
-    'firebase-authentication-keyring',
-    'firebase-authentication-backup-key'
-  );
-  const [result] = await kmsClient.decrypt({
-    name: keyName,
-    ciphertext: ciphertext,
-  });
+    // 復号化
+    const kmsClient = new KeyManagementServiceClient();
+    const keyName = kmsClient.cryptoKeyPath(
+      projectId,
+      region,
+      'firebase-authentication-keyring',
+      'firebase-authentication-backup-key'
+    );
+    const [result] = await kmsClient.decrypt({
+      name: keyName,
+      ciphertext: ciphertext,
+    });
 
-  if (!result.plaintext) {
-    throw new Error('Decrypt Failed.');
+    if (!result.plaintext) {
+      throw new Error('Decrypt Failed.');
+    }
+    await writeFile(tmpPlaintextFileName, result.plaintext.toString());
+    // Authの復元
+    await auth.upload(tmpPlaintextFileName, { project: projectId });
+    // ローカルのファイルを削除
+    await Promise.all([unlink(tmpPlaintextFileName), unlink(tmpCiphertextFileName)]);
+  } else {
+    await bucket.file(backupFilePath).download({ destination: tmpPlaintextFileName });
+    // Authの復元
+    await auth.upload(tmpPlaintextFileName, { project: projectId });
+    // ローカルのファイルを削除
+    await unlink(tmpPlaintextFileName);
   }
-  await writeFile(tmpPlaintextFileName, result.plaintext.toString());
-
-  // Authの復元
-  await auth.upload(tmpPlaintextFileName, { project: projectId });
-
-  // ローカルのファイルを削除
-  await Promise.all([unlink(tmpPlaintextFileName), unlink(tmpCiphertextFileName)]);
 };

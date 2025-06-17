@@ -102,6 +102,7 @@ export const backupAuth = onSchedule(
 | region     | required | asia-northeast1                     |
 | projectId  | optional | process.env.GCLOUD_PROJECT          |
 | bucketName | optional | ${projectId}-authentication-backups |
+| encript    | optional | false                               |
 
 ## npm publish
 
