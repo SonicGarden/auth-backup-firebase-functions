@@ -1,7 +1,8 @@
-import { KeyManagementServiceClient } from '@google-cloud/kms';
-import { Storage } from '@google-cloud/storage';
-import { auth } from 'firebase-tools';
-import { readFile, unlink, writeFile } from 'fs/promises';
+import { KeyManagementServiceClient } from "@google-cloud/kms";
+import { Storage } from "@google-cloud/storage";
+import { createDecipheriv } from "crypto";
+import { auth } from "firebase-tools";
+import { readFile, unlink, writeFile } from "fs/promises";
 
 export const restoreAuth = async ({
   region,
@@ -25,33 +26,59 @@ export const restoreAuth = async ({
   const bucket = gcsClient.bucket(bucketName);
 
   if (encripted) {
-    await bucket.file(backupFilePath).download({ destination: tmpCiphertextFileName });
-    // ファイル読み込み
-    const ciphertext = await readFile(tmpCiphertextFileName);
+    await bucket
+      .file(backupFilePath)
+      .download({ destination: tmpCiphertextFileName });
 
-    // 復号化
+    // 暗号化されたファイルを読み込み
+    const combinedData = await readFile(tmpCiphertextFileName);
+
+    // データを分解
+    const dekLength = combinedData[0];
+    const encryptedDek = combinedData.subarray(1, 1 + dekLength);
+    const iv = combinedData.subarray(1 + dekLength, 1 + dekLength + 12);
+    const authTag = combinedData.subarray(
+      1 + dekLength + 12,
+      1 + dekLength + 12 + 16
+    );
+    const encryptedData = combinedData.subarray(1 + dekLength + 12 + 16);
+
+    // KMSでDEKを復号化
     const kmsClient = new KeyManagementServiceClient();
     const keyName = kmsClient.cryptoKeyPath(
-      projectId,
+      projectId!,
       region,
-      'firebase-authentication-keyring',
-      'firebase-authentication-backup-key'
+      "firebase-authentication-keyring",
+      "firebase-authentication-backup-key"
     );
     const [result] = await kmsClient.decrypt({
       name: keyName,
-      ciphertext: ciphertext,
+      ciphertext: encryptedDek,
     });
+    const dek = result.plaintext as Buffer;
 
-    if (!result.plaintext) {
-      throw new Error('Decrypt Failed.');
-    }
-    await writeFile(tmpPlaintextFileName, result.plaintext.toString());
+    // AES-256-GCMでデータを復号化
+    const decipher = createDecipheriv("aes-256-gcm", dek, iv);
+    decipher.setAAD(Buffer.from("firebase-auth-backup"));
+    decipher.setAuthTag(authTag);
+
+    const decryptedData = Buffer.concat([
+      decipher.update(encryptedData),
+      decipher.final(),
+    ]);
+
+    await writeFile(tmpPlaintextFileName, decryptedData);
     // Authの復元
     await auth.upload(tmpPlaintextFileName, { project: projectId });
     // ローカルのファイルを削除
-    await Promise.all([unlink(tmpPlaintextFileName), unlink(tmpCiphertextFileName)]);
+    await Promise.all([
+      unlink(tmpPlaintextFileName),
+      unlink(tmpCiphertextFileName),
+    ]);
   } else {
-    await bucket.file(backupFilePath).download({ destination: tmpPlaintextFileName });
+    await bucket
+      .file(backupFilePath)
+      .download({ destination: tmpPlaintextFileName });
     // Authの復元
     await auth.upload(tmpPlaintextFileName, { project: projectId });
     // ローカルのファイルを削除
