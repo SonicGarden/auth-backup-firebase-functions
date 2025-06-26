@@ -8,12 +8,12 @@ export const backupAuth = async ({
   region,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encript,
+  encrypt,
 }: {
   region: string;
   projectId?: string;
   bucketName?: string;
-  encript?: boolean;
+  encrypt?: boolean;
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
@@ -27,7 +27,7 @@ export const backupAuth = async ({
 
   // ファイル読み込み
   const plaintext = await readFile(tmpPlaintextFileName);
-  if (encript) {
+  if (encrypt) {
     const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encrypted`;
 
     const dek = randomBytes(32);
@@ -50,10 +50,16 @@ export const backupAuth = async ({
     );
     const [result] = await kmsClient.encrypt({ name: keyName, plaintext: dek });
 
+    if (!result.ciphertext) {
+      throw new Error("KMS encryption failed: No ciphertext returned");
+    }
+
+    const lengthBytes = Buffer.allocUnsafe(2);
+    lengthBytes.writeUInt16BE(result.ciphertext.length, 0);
     // 暗号化されたDEK、IV、認証タグ、暗号化されたデータを結合
     const encryptedDek = result.ciphertext as Buffer;
     const combinedData = Buffer.concat([
-      Buffer.from([encryptedDek.length]), // 暗号化されたDEKの長さ（1バイト）
+      lengthBytes,
       encryptedDek, // 暗号化されたDEK
       iv, // IV（12バイト）
       authTag, // 認証タグ（16バイト）

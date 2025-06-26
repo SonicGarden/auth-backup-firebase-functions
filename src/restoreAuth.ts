@@ -9,23 +9,23 @@ export const restoreAuth = async ({
   backupFilePath,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encripted,
+  encrypted,
 }: {
   region: string;
   backupFilePath: string;
   projectId?: string;
   bucketName?: string;
-  encripted?: boolean;
+  encrypted?: boolean;
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
-  const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encripted`;
+  const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encrypted`;
 
   // GCS から ローカルに取得
   const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
 
-  if (encripted) {
+  if (encrypted) {
     await bucket
       .file(backupFilePath)
       .download({ destination: tmpCiphertextFileName });
@@ -34,14 +34,15 @@ export const restoreAuth = async ({
     const combinedData = await readFile(tmpCiphertextFileName);
 
     // データを分解
-    const dekLength = combinedData[0];
-    const encryptedDek = combinedData.subarray(1, 1 + dekLength);
-    const iv = combinedData.subarray(1 + dekLength, 1 + dekLength + 12);
+    const dekLength = combinedData.readUInt16BE(0);
+
+    const encryptedDek = combinedData.subarray(2, 2 + dekLength);
+    const iv = combinedData.subarray(2 + dekLength, 2 + dekLength + 12);
     const authTag = combinedData.subarray(
-      1 + dekLength + 12,
-      1 + dekLength + 12 + 16
+      2 + dekLength + 12,
+      2 + dekLength + 12 + 16
     );
-    const encryptedData = combinedData.subarray(1 + dekLength + 12 + 16);
+    const encryptedData = combinedData.subarray(2 + dekLength + 12 + 16);
 
     // KMSでDEKを復号化
     const kmsClient = new KeyManagementServiceClient();
