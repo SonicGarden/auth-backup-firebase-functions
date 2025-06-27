@@ -76,6 +76,34 @@ $ gcloud kms keys \
   --project [PROJECT_ID]
 ```
 
+Restore を実行するためのサービスアカウントを作成。
+Restoreが必要になった時に、このサービスアカウントを作成し、そのサービスアカウントを利用してscript等でRestore関数を実行する。
+
+```shell
+# サービスアカウント作成
+$ gcloud iam service-accounts create restore-auth --display-name="restore-auth" --project [PROJECT_ID]
+
+# 作成したサービスアカウントに「Identity Platform 管理者」を付与
+$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
+  --member serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --role roles/identityplatform.admin
+
+# 作成したサービスアカウントに「Storage オブジェクト閲覧者」を付与
+$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
+  --member serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --role roles/storage.objectViewer
+
+# 作成したサービスアカウントに「クラウド KMS 暗号鍵の暗号化ロール」を付与
+$ gcloud kms keys \
+  add-iam-policy-binding \
+  --location=asia-northeast1 \
+  --keyring=firebase-authentication-keyring \
+  firebase-authentication-backup-key \
+  --member=serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --role=roles/cloudkms.cryptoKeyEncrypterDecrypter \
+  --project [PROJECT_ID]
+```
+
 ## Usage
 
 ```ts
@@ -102,6 +130,7 @@ export const backupAuth = onSchedule(
 | region     | required | asia-northeast1                     |
 | projectId  | optional | process.env.GCLOUD_PROJECT          |
 | bucketName | optional | ${projectId}-authentication-backups |
+| encrypt    | optional | false                               |
 
 ## npm publish
 
