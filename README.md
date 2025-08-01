@@ -115,7 +115,7 @@ export const backupAuth = onSchedule(
     schedule: '0 1 * * *',
     region: 'asia-northeast1',
     timeZone: 'Asia/Tokyo',
-    serviceAccount: 'backup-auth@[PROJECT_ID].iam.gserviceaccount.com',
+    serviceAccount: `backup-auth@${process.env.GCLOUD_PROJECT}.iam.gserviceaccount.com`,
   },
   async (event) => {
     await _backupAuth({ region: 'asia-northeast1' });
