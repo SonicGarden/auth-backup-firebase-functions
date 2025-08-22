@@ -8,7 +8,7 @@ export const backupAuth = async ({
   region,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encrypt,
+  encrypt = true,
 }: {
   region: string;
   projectId?: string;
@@ -17,7 +17,8 @@ export const backupAuth = async ({
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
-  const gcsDestination = `${new Date().toISOString()}/${plaintextFileName}.encrypted`;
+  const gcsDirectoryName = new Date().toISOString();
+  const gcsDestination = encrypt ? `${gcsDirectoryName}/${plaintextFileName}.encrypted` : `${gcsDirectoryName}/${plaintextFileName}`;
 
   // ローカルに取得
   await auth.export(tmpPlaintextFileName, { project: projectId });
