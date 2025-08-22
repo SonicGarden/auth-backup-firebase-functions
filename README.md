@@ -77,7 +77,7 @@ $ gcloud kms keys \
 ```
 
 Restore を実行するためのサービスアカウントを作成。
-Restoreが必要になった時に、このサービスアカウントを作成し、そのサービスアカウントを利用してscript等でRestore関数を実行する。
+Restore が必要になった時に、このサービスアカウントを作成し、そのサービスアカウントを利用して script 等で Restore 関数を実行する。
 
 ```shell
 # サービスアカウント作成
@@ -107,18 +107,18 @@ $ gcloud kms keys \
 ## Usage
 
 ```ts
-import { backupAuth as _backupAuth } from '@sonicgarden/auth-backup-firebase-functions';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { backupAuth as _backupAuth } from "@sonicgarden/auth-backup-firebase-functions";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 export const backupAuth = onSchedule(
   {
-    schedule: '0 1 * * *',
-    region: 'asia-northeast1',
-    timeZone: 'Asia/Tokyo',
+    schedule: "0 1 * * *",
+    region: "asia-northeast1",
+    timeZone: "Asia/Tokyo",
     serviceAccount: `backup-auth@${process.env.GCLOUD_PROJECT}.iam.gserviceaccount.com`,
   },
   async (event) => {
-    await _backupAuth({ region: 'asia-northeast1' });
+    await _backupAuth({ region: "asia-northeast1" });
   }
 );
 ```
@@ -130,7 +130,7 @@ export const backupAuth = onSchedule(
 | region     | required | asia-northeast1                     |
 | projectId  | optional | process.env.GCLOUD_PROJECT          |
 | bucketName | optional | ${projectId}-authentication-backups |
-| encrypt    | optional | false                               |
+| encrypt    | optional | true                                |
 
 ## npm publish
 

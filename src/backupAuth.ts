@@ -15,9 +15,11 @@ export const backupAuth = async ({
   bucketName?: string;
   encrypt?: boolean;
 }): Promise<void> => {
+  const encryptionEnabled = encrypt ?? true;
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
-  const gcsDestination = `${new Date().toISOString()}/${plaintextFileName}.encrypted`;
+  const gcsDirectoryName = new Date().toISOString();
+  const gcsDestination = encryptionEnabled ? `${gcsDirectoryName}/${plaintextFileName}.encrypted` : `${gcsDirectoryName}/${plaintextFileName}`;
 
   // ローカルに取得
   await auth.export(tmpPlaintextFileName, { project: projectId });
@@ -27,7 +29,7 @@ export const backupAuth = async ({
 
   // ファイル読み込み
   const plaintext = await readFile(tmpPlaintextFileName);
-  if (encrypt) {
+  if (encryptionEnabled) {
     const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encrypted`;
 
     const dek = randomBytes(32);
