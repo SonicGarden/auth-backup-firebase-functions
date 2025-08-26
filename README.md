@@ -10,20 +10,32 @@ npm install --save @sonicgarden/auth-backup-firebase-functions
 yarn add @sonicgarden/auth-backup-firebase-functions
 ```
 
+## Setup
+Google Cloud のリソースの作成を行う。
+
+パッケージと共にインストールされる `auth-backup-firebase-setup` というスクリプトで作成可能。
+
+```
+auth-backup-firebase-setup <PROJECT_ID> [<KMS_LOCATION> <BUCKET_LOCATION>]
+```
+
+手動で作る場合は以下を参照。
+
 ### Cloud Key Management Service setup
 
 バックアップを KMS で暗号化するための初期設定を行う。
 
 ```shell
-$ gcloud services enable cloudkms.googleapis.com --project [PROJECT_ID]
-$ gcloud kms keyrings create --location=asia-northeast1 firebase-authentication-keyring --project [PROJECT_ID]
+$ export PROJECT_ID=<YOUR_PROJECT_ID>
+$ gcloud services enable cloudkms.googleapis.com --project "${PROJECT_ID}"
+$ gcloud kms keyrings create --location=asia-northeast1 firebase-authentication-keyring --project "${PROJECT_ID}"
 $ gcloud kms keys create --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   --purpose=encryption \
   --rotation-period=90d \
-  --next-rotation-time="yyyy-MM-ddT00:00:00Z" \
+  --next-rotation-time="$(date -I -d "90 days")T00:00:00Z" \
   firebase-authentication-backup-key \
-  --project [PROJECT_ID]
+  --project "${PROJECT_ID}"
 ```
 
 ### Cloud Storage setup
@@ -31,8 +43,8 @@ $ gcloud kms keys create --location=asia-northeast1 \
 バックアップの保存先である Storage のバケットを作成する。
 
 ```shell
-$ gcloud storage buckets create gs://[PROJECT_ID]-authentication-backups \
-  --project=[PROJECT_ID] \
+$ gcloud storage buckets create "gs://${PROJECT_ID}-authentication-backups" \
+  --project="${PROJECT_ID}" \
   --default-storage-class=COLDLINE \
   --location=ASIA \
   --uniform-bucket-level-access
@@ -42,8 +54,8 @@ $ gcloud storage buckets create gs://[PROJECT_ID]-authentication-backups \
 「オブジェクトが作成されてから 30 日以降」の条件で、「オブジェクトの削除」をするよう設定する。
 
 ```shell
-$ echo "{ \"lifecycle\": { \"rule\": [{ \"action\": { \"type\": \"Delete\" }, \"condition\": { \"age\": 30 } }] } }" > lifecycle.json
-$ gcloud storage buckets update gs://[PROJECT_ID]-authentication-backups --lifecycle-file=lifecycle.json
+$ echo '{ "lifecycle": { "rule": [{ "action": { "type": "Delete" }, "condition": { "age": 30 } }] } }' > lifecycle.json
+$ gcloud storage buckets update "gs://${PROJECT_ID}-authentication-backups" --lifecycle-file=lifecycle.json
 ```
 
 ### Service Account setup
@@ -53,16 +65,24 @@ Functions を実行するサービスアカウントを作成します。
 
 ```shell
 # サービスアカウント作成
-$ gcloud iam service-accounts create backup-auth --display-name="backup-auth" --project [PROJECT_ID]
+$ gcloud iam service-accounts create backup-auth --display-name="backup-auth" --project "${PROJECT_ID}"
 
-# 作成したサービスアカウントに「Identity Platform 閲覧者」を付与
-$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
-  --member serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
-  --role roles/identityplatform.viewer
+# バックアップ用カスタムロールを作成
+$ gcloud iam roles create firebaseAuthBackup \
+  --project "${PROJECT_ID}" \
+  --title="Firebase Auth backup" \
+  --description="Custom role for Firebase Auth backup" \
+  --permissions="firebaseauth.users.get,firebaseauth.configs.getHashConfig" \
+  --stage=GA
+
+# 作成したサービスアカウントにバックアップ用カスタムロールを付与
+$ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:backup-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role "projects/${PROJECT_ID}/roles/firebaseAuthBackup"
 
 # 作成したサービスアカウントに「Storage オブジェクト作成者」を付与
-$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
-  --member serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
+$ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:backup-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role roles/storage.objectCreator
 
 # 作成したサービスアカウントに「クラウド KMS 暗号鍵の暗号化ロール」を付与
@@ -71,26 +91,28 @@ $ gcloud kms keys \
   --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   firebase-authentication-backup-key \
-  --member=serviceAccount:backup-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --member="serviceAccount:backup-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role=roles/cloudkms.cryptoKeyEncrypter \
-  --project [PROJECT_ID]
+  --project "${PROJECT_ID}"
 ```
+
+### Service Account setup (for restore)
 
 Restore を実行するためのサービスアカウントを作成。
 Restoreが必要になった時に、このサービスアカウントを作成し、そのサービスアカウントを利用してscript等でRestore関数を実行する。
 
 ```shell
 # サービスアカウント作成
-$ gcloud iam service-accounts create restore-auth --display-name="restore-auth" --project [PROJECT_ID]
+$ gcloud iam service-accounts create restore-auth --display-name="restore-auth" --project "${PROJECT_ID}"
 
 # 作成したサービスアカウントに「Identity Platform 管理者」を付与
-$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
-  --member serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+$ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:restore-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role roles/identityplatform.admin
 
 # 作成したサービスアカウントに「Storage オブジェクト閲覧者」を付与
-$ gcloud projects add-iam-policy-binding [PROJECT_ID] \
-  --member serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+$ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:restore-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role roles/storage.objectViewer
 
 # 作成したサービスアカウントに「クラウド KMS 暗号鍵の暗号化ロール」を付与
@@ -99,9 +121,9 @@ $ gcloud kms keys \
   --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   firebase-authentication-backup-key \
-  --member=serviceAccount:restore-auth@[PROJECT_ID].iam.gserviceaccount.com \
+  --member="serviceAccount:restore-auth@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role=roles/cloudkms.cryptoKeyEncrypterDecrypter \
-  --project [PROJECT_ID]
+  --project "${PROJECT_ID}"
 ```
 
 ## Usage
