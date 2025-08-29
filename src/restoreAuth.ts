@@ -1,8 +1,8 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { Storage } from "@google-cloud/storage";
-import { createDecipheriv } from "crypto";
 import { auth } from "firebase-tools";
 import { readFile, unlink, writeFile } from "fs/promises";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
+import { decryptData } from "./encryption";
 
 export const restoreAuth = async ({
   region,
@@ -10,12 +10,16 @@ export const restoreAuth = async ({
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
   encrypted,
+  keyringName = DEFAULT_KEYRING_NAME,
+  keyName = DEFAULT_KEY_NAME,
 }: {
   region: string;
   backupFilePath: string;
   projectId?: string;
   bucketName?: string;
   encrypted?: boolean;
+  keyringName?: string;
+  keyName?: string;
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
@@ -33,40 +37,13 @@ export const restoreAuth = async ({
     // 暗号化されたファイルを読み込み
     const combinedData = await readFile(tmpCiphertextFileName);
 
-    // データを分解
-    const dekLength = combinedData.readUInt16BE(0);
-
-    const encryptedDek = combinedData.subarray(2, 2 + dekLength);
-    const iv = combinedData.subarray(2 + dekLength, 2 + dekLength + 12);
-    const authTag = combinedData.subarray(
-      2 + dekLength + 12,
-      2 + dekLength + 12 + 16
-    );
-    const encryptedData = combinedData.subarray(2 + dekLength + 12 + 16);
-
-    // KMSでDEKを復号化
-    const kmsClient = new KeyManagementServiceClient();
-    const keyName = kmsClient.cryptoKeyPath(
-      projectId!,
+    const decryptedData = await decryptData({
+      combinedData,
+      projectId: projectId!,
       region,
-      "firebase-authentication-keyring",
-      "firebase-authentication-backup-key"
-    );
-    const [result] = await kmsClient.decrypt({
-      name: keyName,
-      ciphertext: encryptedDek,
+      keyringName,
+      keyName,
     });
-    const dek = result.plaintext as Buffer;
-
-    // AES-256-GCMでデータを復号化
-    const decipher = createDecipheriv("aes-256-gcm", dek, iv);
-    decipher.setAAD(Buffer.from("firebase-auth-backup"));
-    decipher.setAuthTag(authTag);
-
-    const decryptedData = Buffer.concat([
-      decipher.update(encryptedData),
-      decipher.final(),
-    ]);
 
     await writeFile(tmpPlaintextFileName, decryptedData);
     // Authの復元
