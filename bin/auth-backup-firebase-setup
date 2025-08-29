@@ -1,0 +1,98 @@
+#!/bin/bash
+set -eu
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <PROJECT_ID> [<KMS_LOCATION> [<BUCKET_LOCATION>]]"
+    exit 1
+fi
+
+PROJECT_ID=$1
+KMS_LOCATION=${2:-asia-northeast1} # https://cloud.google.com/kms/docs/locations
+BUCKET_LOCATION=${3:-ASIA} # https://cloud.google.com/storage/docs/locations
+
+# For Tokyo region:
+# KMS_LOCATION=asia-northeast1
+# BUCKET_LOCATION=ASIA
+#
+# For Oregon region:
+# KMS_LOCATION=us-west1
+# BUCKET_LOCATION=US
+
+echo "This script will set up the necessary resources for Firebase Auth backup."
+echo "-------------------------------"
+echo "Project ID: ${PROJECT_ID}"
+echo "KMS Location: ${KMS_LOCATION}"
+echo "Bucket Location: ${BUCKET_LOCATION}"
+echo "-------------------------------"
+read -p "Do you want to proceed? (y/n) [n]: " choice
+
+if [[ "$choice" != "y" && "$choice" != "Y" ]]; then
+    echo "Operation cancelled."
+    exit 0
+fi
+
+## KMS の鍵を作成
+KEYRING_NAME=firebase-authentication-keyring
+KEY_NAME=firebase-authentication-backup-key
+echo "----- Creating KMS key: ${KEY_NAME} in keyring: ${KEYRING_NAME}"
+
+gcloud services enable cloudkms.googleapis.com --project "${PROJECT_ID}"
+gcloud kms keyrings create --location="${KMS_LOCATION}" "${KEYRING_NAME}" --project "${PROJECT_ID}"
+gcloud kms keys create --location="${KMS_LOCATION}" \
+  --keyring="${KEYRING_NAME}" \
+  --purpose=encryption \
+  --rotation-period=90d \
+  --next-rotation-time="$(date -I -d "90 days")T00:00:00Z" \
+  "${KEY_NAME}" \
+  --project "${PROJECT_ID}"
+
+## バックアップの保存先である Storage のバケットを作成
+BUCKET_NAME="${PROJECT_ID}-authentication-backups"
+echo "----- Creating Storage bucket: ${BUCKET_NAME}"
+
+gcloud services enable storage.googleapis.com --project "${PROJECT_ID}"
+gcloud storage buckets create "gs://${BUCKET_NAME}" \
+  --project="${PROJECT_ID}" \
+  --default-storage-class=COLDLINE \
+  --location="${BUCKET_LOCATION}" \
+  --uniform-bucket-level-access
+
+echo '{ "lifecycle": { "rule": [{ "action": { "type": "Delete" }, "condition": { "age": 30 } }] } }' > /tmp/lifecycle.json
+gcloud storage buckets update "gs://${BUCKET_NAME}" --lifecycle-file=/tmp/lifecycle.json
+
+## バックアップ用のカスタムロールを作成
+echo "----- Creating custom role: firebaseAuthBackup"
+
+# パスワードハッシュを取得するために firebaseauth.configs.getHashConfig 権限が必要
+gcloud iam roles create firebaseAuthBackup \
+  --project "${PROJECT_ID}" \
+  --title="Firebase Auth backup" \
+  --description="Custom role for Firebase Auth backup" \
+  --permissions="firebaseauth.users.get,firebaseauth.configs.getHashConfig" \
+  --stage=GA
+
+## バックアップ用サービスアカウント作成
+BACKUP_SERVICE_ACCOUNT_NAME=backup-auth
+echo "----- Creating service account: ${BACKUP_SERVICE_ACCOUNT_NAME}"
+
+gcloud iam service-accounts create "${BACKUP_SERVICE_ACCOUNT_NAME}" --display-name="${BACKUP_SERVICE_ACCOUNT_NAME}" --project "${PROJECT_ID}"
+
+# 作成したサービスアカウントに「Firebase Auth backup」ロールを付与
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:${BACKUP_SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role "projects/${PROJECT_ID}/roles/firebaseAuthBackup"
+
+# 作成したサービスアカウントに「Storage オブジェクト作成者」を付与
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member "serviceAccount:${BACKUP_SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role roles/storage.objectCreator
+
+# 作成したサービスアカウントに「クラウド KMS 暗号鍵の暗号化ロール」を付与
+gcloud kms keys \
+  add-iam-policy-binding \
+  --location="${KMS_LOCATION}" \
+  --keyring="${KEYRING_NAME}" \
+  "${KEY_NAME}" \
+  --member="serviceAccount:${BACKUP_SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role=roles/cloudkms.cryptoKeyEncrypter \
+  --project "${PROJECT_ID}"

@@ -13,8 +13,12 @@
   "author": "",
   "license": "MIT",
   "files": [
-    "lib"
+    "lib",
+    "bin"
   ],
+  "bin": {
+    "auth-backup-firebase-setup": "./bin/auth-backup-firebase-setup"
+  },
   "bugs": {
     "url": "https://github.com/SonicGarden/auth-backup-firebase-functions/issues"
   },
