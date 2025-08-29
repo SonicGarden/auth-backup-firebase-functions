@@ -35,11 +35,11 @@ export const restoreAuth = async ({
       .download({ destination: tmpCiphertextFileName });
 
     // 暗号化されたファイルを読み込み
-    const combinedData = await readFile(tmpCiphertextFileName);
+    const encryptedData = await readFile(tmpCiphertextFileName);
 
     const decryptedData = await decryptData({
-      combinedData,
-      projectId: projectId!,
+      encryptedData,
+      projectId,
       region,
       keyringName,
       keyName,

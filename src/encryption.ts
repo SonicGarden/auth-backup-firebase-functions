@@ -10,7 +10,7 @@ export interface EncryptDataOptions {
 }
 
 export interface DecryptDataOptions {
-  combinedData: Buffer;
+  encryptedData: Buffer;
   projectId: string;
   region: string;
   keyringName: string;
@@ -78,7 +78,7 @@ export async function encryptData({
   const cipher = createCipheriv("aes-256-gcm", dek, iv);
   cipher.setAAD(Buffer.from("firebase-auth-backup"));
 
-  const encryptedData = Buffer.concat([
+  const ciphertext = Buffer.concat([
     cipher.update(plaintext),
     cipher.final(),
   ]);
@@ -88,33 +88,33 @@ export async function encryptData({
 
   const lengthBytes = Buffer.allocUnsafe(2);
   lengthBytes.writeUInt16BE(encryptedDek.length, 0);
-  const combinedData = Buffer.concat([
+  const encryptedData = Buffer.concat([
     lengthBytes,
     encryptedDek,
     iv,
     authTag,
-    encryptedData,
+    ciphertext,
   ]);
 
-  return combinedData;
+  return encryptedData;
 }
 
 export async function decryptData({
-  combinedData,
+  encryptedData,
   projectId,
   region,
   keyringName,
   keyName,
 }: DecryptDataOptions): Promise<Buffer> {
-  const dekLength = combinedData.readUInt16BE(0);
+  const dekLength = encryptedData.readUInt16BE(0);
 
-  const encryptedDek = combinedData.subarray(2, 2 + dekLength);
-  const iv = combinedData.subarray(2 + dekLength, 2 + dekLength + 12);
-  const authTag = combinedData.subarray(
+  const encryptedDek = encryptedData.subarray(2, 2 + dekLength);
+  const iv = encryptedData.subarray(2 + dekLength, 2 + dekLength + 12);
+  const authTag = encryptedData.subarray(
     2 + dekLength + 12,
     2 + dekLength + 12 + 16
   );
-  const encryptedData = combinedData.subarray(2 + dekLength + 12 + 16);
+  const ciphertext = encryptedData.subarray(2 + dekLength + 12 + 16);
 
   const dek = await decryptDEK(encryptedDek, projectId, region, keyringName, keyName);
 
@@ -123,7 +123,7 @@ export async function decryptData({
   decipher.setAuthTag(authTag);
 
   const decryptedData = Buffer.concat([
-    decipher.update(encryptedData),
+    decipher.update(ciphertext),
     decipher.final(),
   ]);
 
