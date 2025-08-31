@@ -149,26 +149,29 @@ export const backupAuth = onSchedule(
 
 #### backupAuth
 
-| parameter   | required | default value                          |
-| ----------- | -------- | -------------------------------------- |
-| region      | required | -                                      |
-| projectId   | optional | process.env.GCLOUD_PROJECT             |
-| bucketName  | optional | ${projectId}-authentication-backups    |
-| encrypt     | optional | true                                   |
-| keyringName | optional | firebase-authentication-keyring        |
-| keyName     | optional | firebase-authentication-backup-key     |
+| parameter   | required | default value                          | description |
+| ----------- | -------- | -------------------------------------- | ----------- |
+| region      | required | -                                      | KMS のリージョン |
+| projectId   | optional | process.env.GCLOUD_PROJECT             | プロジェクト ID |
+| bucketName  | optional | ${process.env.GCLOUD_PROJECT}-authentication-backups | GCS バケット名 |
+| encrypt     | optional | true                                   | バックアップファイルを暗号化するか |
+| keyringName | optional | firebase-authentication-keyring        | KMS キーリング名 |
+| keyName     | optional | firebase-authentication-backup-key     | KMS キー名 |
 
 #### restoreAuth
 
-| parameter      | required | default value                          |
-| -------------- | -------- | -------------------------------------- |
-| region         | required | -                                      |
-| backupFilePath | required | -                                      |
-| projectId      | optional | process.env.GCLOUD_PROJECT             |
-| bucketName     | optional | ${projectId}-authentication-backups    |
-| encrypted      | optional | -                                      |
-| keyringName    | optional | firebase-authentication-keyring        |
-| keyName        | optional | firebase-authentication-backup-key     |
+| parameter            | required | default value                          | description |
+| -------------------- | -------- | -------------------------------------- | ----------- |
+| region               | required | -                                      | KMS のリージョン |
+| backupFilePath       | required | -                                      | GCS 内のバックアップファイルパス |
+| projectId            | optional | process.env.GCLOUD_PROJECT             | プロジェクト ID |
+| bucketName           | optional | ${process.env.GCLOUD_PROJECT}-authentication-backups | GCS バケット名 |
+| encrypted            | optional | -                                      | バックアップファイルが暗号化されているか |
+| keyringName          | optional | firebase-authentication-keyring        | KMS キーリング名 |
+| keyName              | optional | firebase-authentication-backup-key     | KMS キー名 |
+| destinationProjectId | optional | process.env.GCLOUD_PROJECT             | リストア先のプロジェクト ID |
+| hashParams           | optional | -                                      | パスワードハッシュのパラメータ（hashAlgo, hashKey, saltSeparator, rounds, memCost） |
+
 
 ## npm publish
 
