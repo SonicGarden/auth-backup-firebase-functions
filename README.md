@@ -166,7 +166,7 @@ export const backupAuth = onSchedule(
 | backupFilePath       | required | -                                      | GCS 内のバックアップファイルパス |
 | projectId            | optional | process.env.GCLOUD_PROJECT             | プロジェクト ID |
 | bucketName           | optional | ${process.env.GCLOUD_PROJECT}-authentication-backups | GCS バケット名 |
-| encrypted            | optional | -                                      | バックアップファイルが暗号化されているか |
+| encrypted            | optional | true                                   | バックアップファイルが暗号化されているか |
 | keyringName          | optional | firebase-authentication-keyring        | KMS キーリング名 |
 | keyName              | optional | firebase-authentication-backup-key     | KMS キー名 |
 | destinationProjectId | optional | process.env.GCLOUD_PROJECT             | リストア先のプロジェクト ID |

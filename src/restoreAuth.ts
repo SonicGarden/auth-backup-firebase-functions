@@ -35,7 +35,7 @@ export const restoreAuth = async ({
   backupFilePath,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encrypted,
+  encrypted = true,
   keyringName = DEFAULT_KEYRING_NAME,
   keyName = DEFAULT_KEY_NAME,
   destinationProjectId = process.env.GCLOUD_PROJECT,
@@ -60,6 +60,7 @@ export const restoreAuth = async ({
       .file(backupFilePath)
       .download();
 
+    console.log('Decrypting: ', backupFilePath);
     const decryptedData = await decryptData({
       encryptedData,
       projectId,
@@ -70,9 +71,11 @@ export const restoreAuth = async ({
 
     const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
     writeFileSync(tmpFilePath, decryptedData);
+    console.log('Wrote to: ', tmpFilePath);
     const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
 
     // Authの復元
+    console.log('Uploading');
     await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
     unlinkFunction();
   } else {
