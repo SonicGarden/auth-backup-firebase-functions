@@ -27,7 +27,10 @@
     "build": "tsc -p tsconfig.release.json",
     "build:release": "npm install --production && npm install --no-save typescript && tsc -p tsconfig.release.json",
     "build:pack": "rm -rf lib && npm install && tsc -p tsconfig.release.json && npm pack",
-    "prepare": "tsc -p tsconfig.release.json"
+    "prepare": "tsc -p tsconfig.release.json",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@google-cloud/kms": "^4.0.1",
@@ -38,8 +41,10 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
   }
 }

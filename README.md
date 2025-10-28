@@ -147,12 +147,28 @@ export const backupAuth = onSchedule(
 
 ### Parameters
 
-| parameter  | required | default value                       |
-| ---------- | -------- | ----------------------------------- |
-| region     | required | asia-northeast1                     |
-| projectId  | optional | process.env.GCLOUD_PROJECT          |
-| bucketName | optional | ${projectId}-authentication-backups |
-| encrypt    | optional | true                                |
+#### backupAuth
+
+| parameter   | required | default value                          |
+| ----------- | -------- | -------------------------------------- |
+| region      | required | -                                      |
+| projectId   | optional | process.env.GCLOUD_PROJECT             |
+| bucketName  | optional | ${projectId}-authentication-backups    |
+| encrypt     | optional | true                                   |
+| keyringName | optional | firebase-authentication-keyring        |
+| keyName     | optional | firebase-authentication-backup-key     |
+
+#### restoreAuth
+
+| parameter      | required | default value                          |
+| -------------- | -------- | -------------------------------------- |
+| region         | required | -                                      |
+| backupFilePath | required | -                                      |
+| projectId      | optional | process.env.GCLOUD_PROJECT             |
+| bucketName     | optional | ${projectId}-authentication-backups    |
+| encrypted      | optional | -                                      |
+| keyringName    | optional | firebase-authentication-keyring        |
+| keyName        | optional | firebase-authentication-backup-key     |
 
 ## npm publish
 
