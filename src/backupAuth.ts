@@ -1,23 +1,32 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { Storage } from "@google-cloud/storage";
-import { createCipheriv, randomBytes } from "crypto";
 import { auth } from "firebase-tools";
-import { readFile, unlink, writeFile } from "fs/promises";
+import { readFile } from "node:fs/promises";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
+import { encryptData } from "./encryption";
+import { makeTmpFilePath } from "./makeTmpFilePath";
+import { prepareUnlinkFunction } from "./unlinkFunction";
 
 export const backupAuth = async ({
   region,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encrypt,
+  encrypt = true,
+  keyringName = DEFAULT_KEYRING_NAME,
+  keyName = DEFAULT_KEY_NAME,
 }: {
   region: string;
   projectId?: string;
   bucketName?: string;
   encrypt?: boolean;
+  keyringName?: string;
+  keyName?: string;
 }): Promise<void> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
-  const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
-  const gcsDestination = `${new Date().toISOString()}/${plaintextFileName}.encrypted`;
+  const gcsDirectoryName = new Date().toISOString();
+  const gcsDestination = encrypt ? `${gcsDirectoryName}/${plaintextFileName}.encrypted` : `${gcsDirectoryName}/${plaintextFileName}`;
+
+  const tmpPlaintextFileName = makeTmpFilePath('auth-backup-', '.csv');
+  const unlinkFunction = prepareUnlinkFunction(tmpPlaintextFileName);
 
   // ローカルに取得
   await auth.export(tmpPlaintextFileName, { project: projectId });
@@ -28,55 +37,18 @@ export const backupAuth = async ({
   // ファイル読み込み
   const plaintext = await readFile(tmpPlaintextFileName);
   if (encrypt) {
-    const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encrypted`;
-
-    const dek = randomBytes(32);
-    const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", dek, iv);
-    cipher.setAAD(Buffer.from("firebase-auth-backup"));
-
-    const encryptedData = Buffer.concat([
-      cipher.update(plaintext),
-      cipher.final(),
-    ]);
-    const authTag = cipher.getAuthTag();
-
-    const kmsClient = new KeyManagementServiceClient();
-    const keyName = kmsClient.cryptoKeyPath(
-      projectId!,
+    const encryptedData = await encryptData({
+      plaintext,
+      projectId: projectId!,
       region,
-      "firebase-authentication-keyring",
-      "firebase-authentication-backup-key"
-    );
-    const [result] = await kmsClient.encrypt({ name: keyName, plaintext: dek });
+      keyringName,
+      keyName,
+    });
 
-    if (!result.ciphertext) {
-      throw new Error("KMS encryption failed: No ciphertext returned");
-    }
-
-    const lengthBytes = Buffer.allocUnsafe(2);
-    lengthBytes.writeUInt16BE(result.ciphertext.length, 0);
-    // 暗号化されたDEK、IV、認証タグ、暗号化されたデータを結合
-    const encryptedDek = result.ciphertext as Buffer;
-    const combinedData = Buffer.concat([
-      lengthBytes,
-      encryptedDek, // 暗号化されたDEK
-      iv, // IV（12バイト）
-      authTag, // 認証タグ（16バイト）
-      encryptedData, // 暗号化されたデータ
-    ]);
-
-    await writeFile(tmpCiphertextFileName, combinedData);
-
-    await bucket.upload(tmpCiphertextFileName, { destination: gcsDestination });
-
-    await Promise.all([
-      unlink(tmpPlaintextFileName),
-      unlink(tmpCiphertextFileName),
-    ]);
+    await bucket.file(gcsDestination).save(encryptedData);
+    unlinkFunction();
   } else {
     await bucket.upload(tmpPlaintextFileName, { destination: gcsDestination });
-
-    await unlink(tmpPlaintextFileName);
+    unlinkFunction();
   }
 };

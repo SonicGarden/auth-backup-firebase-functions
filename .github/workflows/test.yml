@@ -1,0 +1,24 @@
+name: Functions Tests
+on: [pull_request]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - 20
+          - 22
+    steps:
+      - name: レポジトリのチェックアウト
+        uses: actions/checkout@v5
+      - name: Node.js ${{ matrix.node-version }} セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: npm install
+        run: npm install
+      - name: テスト実行
+        run: npm test

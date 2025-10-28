@@ -1,88 +1,92 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { Storage } from "@google-cloud/storage";
-import { createDecipheriv } from "crypto";
 import { auth } from "firebase-tools";
-import { readFile, unlink, writeFile } from "fs/promises";
+import { writeFileSync } from "node:fs";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
+import { decryptData } from "./encryption";
+import { prepareUnlinkFunction } from "./unlinkFunction";
+import { makeTmpFilePath } from "./makeTmpFilePath";
+
+// SEE: https://github.com/firebase/firebase-tools/blob/v14.15.1/src/accountImporter.ts
+export type HashAlgo =
+  | 'HMAC_SHA512'
+  | 'HMAC_SHA256'
+  | 'HMAC_SHA1'
+  | 'HMAC_MD5'
+  | 'MD5'
+  | 'SHA1'
+  | 'SHA256'
+  | 'SHA512'
+  | 'PBKDF_SHA1'
+  | 'PBKDF2_SHA256'
+  | 'SCRYPT'
+  | 'BCRYPT'
+  | 'STANDARD_SCRYPT';
+
+export type HashParams = {
+  hashAlgo: HashAlgo;
+  hashKey: string;
+  saltSeparator: string;
+  rounds: number;
+  memCost: number;
+};
 
 export const restoreAuth = async ({
   region,
   backupFilePath,
   projectId = process.env.GCLOUD_PROJECT,
   bucketName = `${process.env.GCLOUD_PROJECT}-authentication-backups`,
-  encrypted,
+  encrypted = true,
+  keyringName = DEFAULT_KEYRING_NAME,
+  keyName = DEFAULT_KEY_NAME,
+  destinationProjectId = process.env.GCLOUD_PROJECT,
+  hashParams,
 }: {
   region: string;
   backupFilePath: string;
   projectId?: string;
   bucketName?: string;
   encrypted?: boolean;
+  keyringName?: string;
+  keyName?: string;
+  destinationProjectId?: string;
+  hashParams?: HashParams;
 }): Promise<void> => {
-  const plaintextFileName = `firebase-authentication-backup.csv`;
-  const tmpPlaintextFileName = `/tmp/${plaintextFileName}`;
-  const tmpCiphertextFileName = `/tmp/${plaintextFileName}.encrypted`;
-
   // GCS から ローカルに取得
   const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
 
   if (encrypted) {
-    await bucket
+    const [encryptedData] = await bucket
       .file(backupFilePath)
-      .download({ destination: tmpCiphertextFileName });
+      .download();
 
-    // 暗号化されたファイルを読み込み
-    const combinedData = await readFile(tmpCiphertextFileName);
-
-    // データを分解
-    const dekLength = combinedData.readUInt16BE(0);
-
-    const encryptedDek = combinedData.subarray(2, 2 + dekLength);
-    const iv = combinedData.subarray(2 + dekLength, 2 + dekLength + 12);
-    const authTag = combinedData.subarray(
-      2 + dekLength + 12,
-      2 + dekLength + 12 + 16
-    );
-    const encryptedData = combinedData.subarray(2 + dekLength + 12 + 16);
-
-    // KMSでDEKを復号化
-    const kmsClient = new KeyManagementServiceClient();
-    const keyName = kmsClient.cryptoKeyPath(
-      projectId!,
+    console.log('Decrypting: ', backupFilePath);
+    const decryptedData = await decryptData({
+      encryptedData,
+      projectId,
       region,
-      "firebase-authentication-keyring",
-      "firebase-authentication-backup-key"
-    );
-    const [result] = await kmsClient.decrypt({
-      name: keyName,
-      ciphertext: encryptedDek,
+      keyringName,
+      keyName,
     });
-    const dek = result.plaintext as Buffer;
 
-    // AES-256-GCMでデータを復号化
-    const decipher = createDecipheriv("aes-256-gcm", dek, iv);
-    decipher.setAAD(Buffer.from("firebase-auth-backup"));
-    decipher.setAuthTag(authTag);
+    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
+    writeFileSync(tmpFilePath, decryptedData);
+    console.log('Wrote to: ', tmpFilePath);
+    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
 
-    const decryptedData = Buffer.concat([
-      decipher.update(encryptedData),
-      decipher.final(),
-    ]);
-
-    await writeFile(tmpPlaintextFileName, decryptedData);
     // Authの復元
-    await auth.upload(tmpPlaintextFileName, { project: projectId });
-    // ローカルのファイルを削除
-    await Promise.all([
-      unlink(tmpPlaintextFileName),
-      unlink(tmpCiphertextFileName),
-    ]);
+    console.log('Uploading');
+    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
+    unlinkFunction();
   } else {
+    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
     await bucket
       .file(backupFilePath)
-      .download({ destination: tmpPlaintextFileName });
+      .download({ destination: tmpFilePath });
+    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
+
     // Authの復元
-    await auth.upload(tmpPlaintextFileName, { project: projectId });
-    // ローカルのファイルを削除
-    await unlink(tmpPlaintextFileName);
+    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
+    unlinkFunction();
   }
 };
