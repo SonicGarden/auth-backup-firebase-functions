@@ -30,7 +30,8 @@
     "prepare": "tsc -p tsconfig.release.json",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@google-cloud/kms": "^4.0.1",
@@ -44,6 +45,7 @@
     "@vitest/ui": "^3.2.4",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
+    "tsx": "^4.20.5",
     "typescript": "^5.3.3",
     "vitest": "^3.2.4"
   }
