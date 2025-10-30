@@ -1,10 +1,15 @@
+import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { __getUnlinkFunctionsCountForTest, prepareUnlinkFunction } from '../src/unlinkFunction';
+import { afterEach, describe, expect, it } from 'vitest';
+import { __getUnlinkFunctionsCountForTest, __resetUnlinkFunctionsForTest, prepareUnlinkFunction } from '../src/unlinkFunction';
 
 describe('prepareUnlinkFunction (integration)', () => {
+  afterEach(() => {
+    // unlinkFunctions 配列をリセット
+    __resetUnlinkFunctionsForTest();
+  });
   it('should delete an actual file', () => {
     // 実際の一時ファイルを作成
     const tempDir = mkdtempSync(path.join(tmpdir(), 'unlink-test-'));
@@ -80,4 +85,56 @@ describe('prepareUnlinkFunction (integration)', () => {
     // ENOENTでも配列から削除されたことを確認
     expect(__getUnlinkFunctionsCountForTest()).toBe(initialCount);
   });
+
+  it('should delete files on process exit', async () => {
+    const scriptPath = path.resolve(__dirname, 'scripts', 'unlinkOnExit.ts');
+
+    return new Promise<void>((resolve, reject) => {
+      let tempFilePath = '';
+      let stdout = '';
+
+      const child = spawn('npx', ['tsx', scriptPath], {
+        stdio: 'pipe'
+      });
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+        const match = stdout.match(/TEMP_FILE_PATH:(.+)/);
+        if (match) {
+          tempFilePath = match[1].trim();
+
+          // ファイルが存在することを確認
+          expect(existsSync(tempFilePath)).toBe(true);
+        }
+      });
+
+      child.stderr.on('data', (data) => {
+        // vscode のターミナルから実行すると debugger 関連のメッセージが stderr に出力されるので無視する
+        if (/debugger/i.test(data.toString())) return;
+
+        reject(new Error(`Script stderr: ${data.toString()}`));
+      });
+
+      child.on('exit', (code) => {
+        try {
+          // プロセスが正常終了したことを確認
+          expect(code).toBe(0);
+
+          // 一時ファイルのパスが取得できていることを確認
+          expect(tempFilePath).toBeTruthy();
+
+          // プロセス終了後、ファイルが削除されていることを確認
+          expect(existsSync(tempFilePath)).toBe(false);
+
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      child.on('error', (error) => {
+        reject(new Error(`Failed to spawn process: ${error.message}`));
+      });
+    });
+  }, 10000); // 10秒のタイムアウトを設定
 });
