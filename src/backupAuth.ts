@@ -6,6 +6,12 @@ import { encryptData } from "./encryption";
 import { makeTmpFilePath } from "./makeTmpFilePath";
 import { prepareUnlinkFunction } from "./unlinkFunction";
 
+type BackupResult = {
+  bucketName: string;
+  objectPath: string;
+  objectUrl: string;
+};
+
 export const backupAuth = async ({
   region,
   projectId = process.env.GCLOUD_PROJECT,
@@ -20,7 +26,7 @@ export const backupAuth = async ({
   encrypt?: boolean;
   keyringName?: string;
   keyName?: string;
-}): Promise<void> => {
+}): Promise<BackupResult> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const gcsDirectoryName = new Date().toISOString();
   const gcsDestination = encrypt ? `${gcsDirectoryName}/${plaintextFileName}.encrypted` : `${gcsDirectoryName}/${plaintextFileName}`;
@@ -56,6 +62,12 @@ export const backupAuth = async ({
       await bucket.upload(tmpPlaintextFileName, { destination: gcsDestination });
     }
     console.log('Done.');
+
+    return {
+      bucketName,
+      objectPath: gcsDestination,
+      objectUrl: `gs://${bucketName}/${gcsDestination}`,
+    }
   } finally {
     unlinkFunction();
   }
