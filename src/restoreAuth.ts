@@ -30,7 +30,15 @@ export type HashParams = {
   memCost: number;
 };
 
-const uploadAuth = async ({ filePath, destinationProjectId, hashParams } : { filePath: string, destinationProjectId: string, hashParams?: HashParams}) => {
+const uploadAuth = async ({
+  filePath,
+  destinationProjectId,
+  hashParams
+}: {
+  filePath: string;
+  destinationProjectId: string;
+  hashParams?: HashParams;
+}) => {
   console.log('Uploading auth backup to Firebase Authentication ...');
   await auth.upload(filePath, { project: destinationProjectId, ...hashParams });
   console.log('Done.');
