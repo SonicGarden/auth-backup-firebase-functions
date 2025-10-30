@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vites
 
 const mockUnlinkSync = vi.hoisted(() => vi.fn()) as MockedFunction<typeof unlinkSync>;
 const mockProcessOn = vi.hoisted(() => vi.fn());
+const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -54,19 +55,60 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle unlinkSync errors gracefully', () => {
-    const filePath = '/tmp/error-test.txt';
+  it('should treat ENOENT error as success', () => {
+    const filePath = '/tmp/enoent-test.txt';
+    const enoentError = new Error('ENOENT: no such file or directory');
+    (enoentError as any).code = 'ENOENT';
+
     mockUnlinkSync.mockImplementation(() => {
-      throw new Error('File not found');
+      throw enoentError;
     });
 
     const unlinkFn = prepareUnlinkFunction(filePath);
 
-    // エラーが発生してもthrowされないことを確認
+    // ENOENTエラーでもthrowされない
     expect(() => unlinkFn()).not.toThrow();
 
+    // 1回目の呼び出しでunlinkSyncが呼ばれる
     expect(mockUnlinkSync).toHaveBeenCalledWith(filePath);
     expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
+
+    // console.errorは呼ばれない（正常終了扱い）
+    expect(mockConsoleError).not.toHaveBeenCalled();
+
+    // 2回目の呼び出しではunlinkSyncが呼ばれない（すでにunlinked=true）
+    unlinkFn();
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('should log error for non-ENOENT errors', () => {
+    const filePath = '/tmp/permission-error-test.txt';
+    const eaccessError = new Error('EACCES: permission denied');
+    (eaccessError as any).code = 'EACCES';
+
+    mockUnlinkSync.mockImplementation(() => {
+      throw eaccessError;
+    });
+
+    const unlinkFn = prepareUnlinkFunction(filePath);
+
+    // ENOENT以外のエラーでもthrowされない
+    expect(() => unlinkFn()).not.toThrow();
+
+    // unlinkSyncが呼ばれる
+    expect(mockUnlinkSync).toHaveBeenCalledWith(filePath);
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
+
+    // console.errorが呼ばれる
+    expect(mockConsoleError).toHaveBeenCalledTimes(1);
+    expect(mockConsoleError).toHaveBeenCalledWith(
+      `Failed to unlink ${filePath}\n`,
+      eaccessError
+    );
+
+    // 2回目の呼び出しでもunlinkSyncが呼ばれる（リトライ可能）
+    unlinkFn();
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
   it('should handle multiple file paths independently', () => {

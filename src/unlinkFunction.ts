@@ -36,13 +36,17 @@ export const prepareUnlinkFunction = (filePath: string) => {
     try {
       unlinkSync(filePath);
       unlinked = true;
-    } catch (err) {
-      // ignore
-    } finally {
       // プロセス終了せずに prepareUnlinkFunction が何度も使われたときにメモリリークしないように
       // 不要になったファイル削除関数を exit handler から取り除く。
       // 普通は短時間でプロセス終了する使い方になると思うが一応。
       removeUnlinkFunction(func);
+    } catch (err) {
+      if (err instanceof Error && err['code'] === 'ENOENT') {
+        unlinked = true;
+        removeUnlinkFunction(func);
+      } else {
+        console.error(`Failed to unlink ${filePath}\n`, err);
+      }
     }
   };
   addUnlinkFunction(func);
