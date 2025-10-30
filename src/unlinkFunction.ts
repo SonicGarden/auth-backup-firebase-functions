@@ -1,9 +1,17 @@
 import { unlinkSync } from "node:fs";
 
-const unlinkFunctions: (() => void)[] = [];
+let unlinkFunctions: (() => void)[] = [];
 
 const addUnlinkFunction = (fn: () => void) => {
   unlinkFunctions.push(fn);
+};
+
+const removeUnlinkFunction = (fn: () => void) => {
+  unlinkFunctions = unlinkFunctions.filter((f) => f !== fn);
+};
+
+const unlinkFilesOnExit = () => {
+  unlinkFunctions.forEach((fn) => fn());
 };
 
 let exitHandlerRegistered = false;
@@ -11,9 +19,7 @@ function registerExitHandler() {
   if (exitHandlerRegistered) return;
 
   // NOTE: process は import せずにグローバルなものを使わないとエラーが起こる
-  process.on('exit', () => {
-    unlinkFunctions.forEach((fn) => fn());
-  });
+  process.on('exit', unlinkFilesOnExit);
   exitHandlerRegistered = true;
 }
 
@@ -25,12 +31,18 @@ export const prepareUnlinkFunction = (filePath: string) => {
 
   let unlinked = false;
   const func = () => {
+    if (unlinked) return;
+
     try {
-      if (unlinked) return;
       unlinkSync(filePath);
       unlinked = true;
     } catch (err) {
       // ignore
+    } finally {
+      // プロセス終了せずに prepareUnlinkFunction が何度も使われたときにメモリリークしないように
+      // 不要になったファイル削除関数を exit handler から取り除く。
+      // 普通は短時間でプロセス終了する使い方になると思うが一応。
+      removeUnlinkFunction(func);
     }
   };
   addUnlinkFunction(func);
