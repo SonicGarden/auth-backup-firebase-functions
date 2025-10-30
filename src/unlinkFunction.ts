@@ -52,3 +52,6 @@ export const prepareUnlinkFunction = (filePath: string) => {
   addUnlinkFunction(func);
   return func;
 };
+
+// テスト用: unlinkFunctions 配列の長さを取得
+export const __getUnlinkFunctionsCountForTest = () => unlinkFunctions.length;
