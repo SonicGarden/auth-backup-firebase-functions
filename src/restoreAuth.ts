@@ -31,17 +31,26 @@ export type HashParams = {
 };
 
 const uploadAuth = async ({
-  filePath,
+  authData,
   destinationProjectId,
   hashParams
 }: {
-  filePath: string;
+  authData: Buffer,
   destinationProjectId: string;
   hashParams?: HashParams;
 }) => {
-  console.log('Uploading auth backup to Firebase Authentication ...');
-  await auth.upload(filePath, { project: destinationProjectId, ...hashParams });
-  console.log('Done.');
+  const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
+  const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
+
+  try {
+    writeFileSync(tmpFilePath, authData);
+
+    // Authの復元
+    console.log('Uploading auth backup to Firebase Authentication ...');
+    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
+  } finally {
+    unlinkFunction();
+  }
 };
 
 export const restoreAuth = async ({
@@ -70,54 +79,23 @@ export const restoreAuth = async ({
   const bucket = gcsClient.bucket(bucketName);
 
   console.log(`Start to restore auth backup ${backupFilePath} in bucket ${bucketName}.`);
-  if (encrypted) {
-    console.log('Downloading auth backup ...');
-    const [encryptedData] = await bucket
-      .file(backupFilePath)
-      .download();
+  console.log('Downloading auth backup ...');
+  const [backupData] = await bucket
+    .file(backupFilePath)
+    .download();
 
+  if (encrypted) {
     console.log('Decrypting auth backup ...');
     const decryptedData = await decryptData({
-      encryptedData,
+      encryptedData: backupData,
       projectId,
       region,
       keyringName,
       keyName,
     });
-
-    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
-    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
-
-    try {
-      writeFileSync(tmpFilePath, decryptedData);
-
-      // Authの復元
-      await uploadAuth({
-        filePath: tmpFilePath,
-        destinationProjectId,
-        hashParams,
-      });
-    } finally {
-      unlinkFunction();
-    }
+    await uploadAuth({ authData: decryptedData, destinationProjectId, hashParams });
   } else {
-    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
-    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
-
-    try {
-      console.log('Downloading auth backup ...');
-      await bucket
-        .file(backupFilePath)
-        .download({ destination: tmpFilePath });
-
-      // Authの復元
-      await uploadAuth({
-        filePath: tmpFilePath,
-        destinationProjectId,
-        hashParams,
-      });
-    } finally {
-      unlinkFunction();
-    }
+    await uploadAuth({ authData: backupData, destinationProjectId, hashParams });
   }
+  console.log('Done.')
 };
