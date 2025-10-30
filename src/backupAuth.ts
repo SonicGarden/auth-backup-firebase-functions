@@ -6,7 +6,7 @@ import { encryptData } from "./encryption";
 import { makeTmpFilePath } from "./makeTmpFilePath";
 import { prepareUnlinkFunction } from "./unlinkFunction";
 
-type BackupResult = {
+export type BackupResult = {
   bucketName: string;
   objectPath: string;
   objectUrl: string;
