@@ -1,10 +1,10 @@
 import { Storage } from "@google-cloud/storage";
 import { auth } from "firebase-tools";
 import { writeFileSync } from "node:fs";
-import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
-import { decryptData } from "./encryption";
-import { prepareUnlinkFunction } from "./unlinkFunction";
-import { makeTmpFilePath } from "./makeTmpFilePath";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./utils/constants";
+import { decryptData } from "./utils/encryption";
+import { prepareUnlinkFunction } from "./utils/unlinkFunction";
+import { makeTmpFilePath } from "./utils/makeTmpFilePath";
 
 // SEE: https://github.com/firebase/firebase-tools/blob/v14.15.1/src/accountImporter.ts
 export type HashAlgo =
@@ -28,6 +28,29 @@ export type HashParams = {
   saltSeparator: string;
   rounds: number;
   memCost: number;
+};
+
+const uploadAuth = async ({
+  authData,
+  destinationProjectId,
+  hashParams
+}: {
+  authData: Buffer,
+  destinationProjectId: string;
+  hashParams?: HashParams;
+}) => {
+  const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
+  const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
+
+  try {
+    writeFileSync(tmpFilePath, authData);
+
+    // Authの復元
+    console.log('Uploading auth backup to Firebase Authentication ...');
+    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
+  } finally {
+    unlinkFunction();
+  }
 };
 
 export const restoreAuth = async ({
@@ -55,38 +78,24 @@ export const restoreAuth = async ({
   const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
 
-  if (encrypted) {
-    const [encryptedData] = await bucket
-      .file(backupFilePath)
-      .download();
+  console.log(`Start to restore auth backup ${backupFilePath} in bucket ${bucketName}.`);
+  console.log('Downloading auth backup ...');
+  const [backupData] = await bucket
+    .file(backupFilePath)
+    .download();
 
-    console.log('Decrypting: ', backupFilePath);
+  if (encrypted) {
+    console.log('Decrypting auth backup ...');
     const decryptedData = await decryptData({
-      encryptedData,
+      encryptedData: backupData,
       projectId,
       region,
       keyringName,
       keyName,
     });
-
-    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
-    writeFileSync(tmpFilePath, decryptedData);
-    console.log('Wrote to: ', tmpFilePath);
-    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
-
-    // Authの復元
-    console.log('Uploading');
-    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
-    unlinkFunction();
+    await uploadAuth({ authData: decryptedData, destinationProjectId, hashParams });
   } else {
-    const tmpFilePath = makeTmpFilePath('auth-backup-', '.csv');
-    await bucket
-      .file(backupFilePath)
-      .download({ destination: tmpFilePath });
-    const unlinkFunction = prepareUnlinkFunction(tmpFilePath);
-
-    // Authの復元
-    await auth.upload(tmpFilePath, { project: destinationProjectId, ...hashParams });
-    unlinkFunction();
+    await uploadAuth({ authData: backupData, destinationProjectId, hashParams });
   }
+  console.log('Done.')
 };

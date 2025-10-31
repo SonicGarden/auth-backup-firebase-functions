@@ -1,10 +1,16 @@
 import { Storage } from "@google-cloud/storage";
 import { auth } from "firebase-tools";
 import { readFile } from "node:fs/promises";
-import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
-import { encryptData } from "./encryption";
-import { makeTmpFilePath } from "./makeTmpFilePath";
-import { prepareUnlinkFunction } from "./unlinkFunction";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./utils/constants";
+import { encryptData } from "./utils/encryption";
+import { makeTmpFilePath } from "./utils/makeTmpFilePath";
+import { prepareUnlinkFunction } from "./utils/unlinkFunction";
+
+export type BackupResult = {
+  bucketName: string;
+  objectPath: string;
+  objectUrl: string;
+};
 
 export const backupAuth = async ({
   region,
@@ -20,7 +26,7 @@ export const backupAuth = async ({
   encrypt?: boolean;
   keyringName?: string;
   keyName?: string;
-}): Promise<void> => {
+}): Promise<BackupResult> => {
   const plaintextFileName = `firebase-authentication-backup.csv`;
   const gcsDirectoryName = new Date().toISOString();
   const gcsDestination = encrypt ? `${gcsDirectoryName}/${plaintextFileName}.encrypted` : `${gcsDirectoryName}/${plaintextFileName}`;
@@ -28,27 +34,41 @@ export const backupAuth = async ({
   const tmpPlaintextFileName = makeTmpFilePath('auth-backup-', '.csv');
   const unlinkFunction = prepareUnlinkFunction(tmpPlaintextFileName);
 
-  // ローカルに取得
-  await auth.export(tmpPlaintextFileName, { project: projectId });
+  console.log(`Start to backup Firebase Authentication to bucket ${bucketName}.`);
+  try {
+    // ローカルに取得
+    console.log('Exporting Firebase Authentication users ...');
+    await auth.export(tmpPlaintextFileName, { project: projectId });
 
-  const gcsClient = new Storage();
-  const bucket = gcsClient.bucket(bucketName);
+    const gcsClient = new Storage();
+    const bucket = gcsClient.bucket(bucketName);
 
-  // ファイル読み込み
-  const plaintext = await readFile(tmpPlaintextFileName);
-  if (encrypt) {
-    const encryptedData = await encryptData({
-      plaintext,
-      projectId: projectId!,
-      region,
-      keyringName,
-      keyName,
-    });
+    // ファイル読み込み
+    const plaintext = await readFile(tmpPlaintextFileName);
+    if (encrypt) {
+      console.log('Encrypting the backup ...');
+      const encryptedData = await encryptData({
+        plaintext,
+        projectId: projectId!,
+        region,
+        keyringName,
+        keyName,
+      });
 
-    await bucket.file(gcsDestination).save(encryptedData);
-    unlinkFunction();
-  } else {
-    await bucket.upload(tmpPlaintextFileName, { destination: gcsDestination });
+      console.log(`Uploading the backup to ${gcsDestination} ...`);
+      await bucket.file(gcsDestination).save(encryptedData);
+    } else {
+      console.log(`Uploading the backup to ${gcsDestination} ...`);
+      await bucket.upload(tmpPlaintextFileName, { destination: gcsDestination });
+    }
+    console.log('Done.');
+
+    return {
+      bucketName,
+      objectPath: gcsDestination,
+      objectUrl: `gs://${bucketName}/${gcsDestination}`,
+    }
+  } finally {
     unlinkFunction();
   }
 };
