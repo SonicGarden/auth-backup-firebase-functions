@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
-import { makeTmpFilePath } from '../src/makeTmpFilePath';
+import { makeTmpFilePath } from '../src/utils/makeTmpFilePath';
 
 const mockRandomBytes = vi.hoisted(() => vi.fn()) as MockedFunction<(size: number) => Buffer>;
 

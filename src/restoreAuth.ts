@@ -1,10 +1,10 @@
 import { Storage } from "@google-cloud/storage";
 import { auth } from "firebase-tools";
 import { writeFileSync } from "node:fs";
-import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
-import { decryptData } from "./encryption";
-import { prepareUnlinkFunction } from "./unlinkFunction";
-import { makeTmpFilePath } from "./makeTmpFilePath";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./utils/constants";
+import { decryptData } from "./utils/encryption";
+import { prepareUnlinkFunction } from "./utils/unlinkFunction";
+import { makeTmpFilePath } from "./utils/makeTmpFilePath";
 
 // SEE: https://github.com/firebase/firebase-tools/blob/v14.15.1/src/accountImporter.ts
 export type HashAlgo =

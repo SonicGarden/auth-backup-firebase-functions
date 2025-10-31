@@ -21,7 +21,7 @@ vi.mock('@google-cloud/kms', () => {
   };
 });
 
-import { encryptData, decryptData } from '../src/encryption';
+import { encryptData, decryptData } from '../src/utils/encryption';
 
 describe('encryption', () => {
   const testOptions = {

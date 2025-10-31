@@ -18,7 +18,7 @@ vi.mock('node:process', () => ({
 }));
 
 // テスト実行前にモジュールをインポート
-import { prepareUnlinkFunction, __resetUnlinkFunctionsForTest } from '../src/unlinkFunction';
+import { prepareUnlinkFunction, __resetUnlinkFunctionsForTest } from '../src/utils/unlinkFunction';
 
 describe('prepareUnlinkFunction', () => {
   afterEach(() => {

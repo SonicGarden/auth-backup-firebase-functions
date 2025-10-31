@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { __getUnlinkFunctionsCountForTest, __resetUnlinkFunctionsForTest, prepareUnlinkFunction } from '../src/unlinkFunction';
+import { __getUnlinkFunctionsCountForTest, __resetUnlinkFunctionsForTest, prepareUnlinkFunction } from '../src/utils/unlinkFunction';
 
 describe('prepareUnlinkFunction (integration)', () => {
   afterEach(() => {

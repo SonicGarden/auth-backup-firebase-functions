@@ -1,10 +1,10 @@
 import { Storage } from "@google-cloud/storage";
 import { auth } from "firebase-tools";
 import { readFile } from "node:fs/promises";
-import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./constants";
-import { encryptData } from "./encryption";
-import { makeTmpFilePath } from "./makeTmpFilePath";
-import { prepareUnlinkFunction } from "./unlinkFunction";
+import { DEFAULT_KEY_NAME, DEFAULT_KEYRING_NAME } from "./utils/constants";
+import { encryptData } from "./utils/encryption";
+import { makeTmpFilePath } from "./utils/makeTmpFilePath";
+import { prepareUnlinkFunction } from "./utils/unlinkFunction";
 
 export type BackupResult = {
   bucketName: string;
