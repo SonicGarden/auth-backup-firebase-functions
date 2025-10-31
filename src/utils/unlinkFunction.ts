@@ -11,7 +11,9 @@ const removeUnlinkFunction = (fn: () => void) => {
 };
 
 const unlinkFilesOnExit = () => {
-  unlinkFunctions.forEach((fn) => fn());
+  unlinkFunctions.forEach((fn) => {
+    fn();
+  });
 };
 
 let exitHandlerRegistered = false;
@@ -19,13 +21,13 @@ function registerExitHandler() {
   if (exitHandlerRegistered) return;
 
   // NOTE: process は import せずにグローバルなものを使わないとエラーが起こる
-  process.on('exit', unlinkFilesOnExit);
+  process.on("exit", unlinkFilesOnExit);
   exitHandlerRegistered = true;
 }
 
 // エラーやSIGINTで処理が中断される場合でもプロセス終了時にファイルを削除するための関数を準備
 export const prepareUnlinkFunction = (filePath: string) => {
-  if (filePath === '') throw new Error('filePath must not be empty');
+  if (filePath === "") throw new Error("filePath must not be empty");
 
   registerExitHandler();
 
@@ -41,7 +43,7 @@ export const prepareUnlinkFunction = (filePath: string) => {
       // 普通は短時間でプロセス終了する使い方になると思うが一応。
       removeUnlinkFunction(func);
     } catch (err) {
-      if (err instanceof Error && err['code'] === 'ENOENT') {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
         unlinked = true;
         removeUnlinkFunction(func);
       } else {

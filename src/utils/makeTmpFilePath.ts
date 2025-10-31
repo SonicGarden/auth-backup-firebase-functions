@@ -7,7 +7,7 @@ export const makeTmpFilePath = (prefix: string, suffix: string) => {
   const maxAttempts = 100;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const tmpFileName = `${prefix}${randomBytes(8).toString('hex')}${suffix}`;
+    const tmpFileName = `${prefix}${randomBytes(8).toString("hex")}${suffix}`;
     const tmpFilePath = path.join(tmpdir(), tmpFileName);
     if (!existsSync(tmpFilePath)) {
       return tmpFilePath;

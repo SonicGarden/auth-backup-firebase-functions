@@ -1,6 +1,6 @@
-import { writeFileSync, existsSync } from "node:fs";
-import { setTimeout } from "node:timers/promises";
+import { existsSync, writeFileSync } from "node:fs";
 import { exit } from "node:process";
+import { setTimeout } from "node:timers/promises";
 import { makeTmpFilePath } from "../../src/utils/makeTmpFilePath";
 import { prepareUnlinkFunction } from "../../src/utils/unlinkFunction";
 
