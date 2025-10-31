@@ -31,7 +31,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "typecheck": "tsc",
+    "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --fix .",
     "format": "biome format .",
@@ -40,9 +40,6 @@
     "check:fix": "biome check --write ."
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "npm run typecheck"
-    ],
     "*.{js,jsx,ts,tsx,css,json}": [
       "biome check"
     ]
