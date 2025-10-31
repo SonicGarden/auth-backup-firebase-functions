@@ -94,10 +94,7 @@ describe("encryption", () => {
     });
 
     it("should handle UTF-8 text with special characters", async () => {
-      const textWithSpecialChars = Buffer.from(
-        "こんにちは 🌍 Ñoño café ☕",
-        "utf-8",
-      );
+      const textWithSpecialChars = Buffer.from("こんにちは 🌍 Ñoño café ☕", "utf-8");
 
       const encryptedData = await encryptData({
         plaintext: textWithSpecialChars,
@@ -109,9 +106,7 @@ describe("encryption", () => {
         ...testOptions,
       });
 
-      expect(decryptedData.toString("utf-8")).toBe(
-        textWithSpecialChars.toString("utf-8"),
-      );
+      expect(decryptedData.toString("utf-8")).toBe(textWithSpecialChars.toString("utf-8"));
     });
 
     it("should produce different encrypted output for the same input (due to random IV)", async () => {
@@ -167,10 +162,7 @@ describe("encryption", () => {
       expect(iv.length).toBe(12);
 
       // 次の16バイトは認証タグ
-      const authTag = encryptedData.subarray(
-        2 + dekLength + 12,
-        2 + dekLength + 12 + 16,
-      );
+      const authTag = encryptedData.subarray(2 + dekLength + 12, 2 + dekLength + 12 + 16);
       expect(authTag.length).toBe(16);
 
       // 残りは暗号化されたデータ

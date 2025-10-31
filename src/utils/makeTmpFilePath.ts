@@ -14,7 +14,5 @@ export const makeTmpFilePath = (prefix: string, suffix: string) => {
     }
   }
 
-  throw new Error(
-    `Failed to generate unique temporary file path after ${maxAttempts} attempts`,
-  );
+  throw new Error(`Failed to generate unique temporary file path after ${maxAttempts} attempts`);
 };

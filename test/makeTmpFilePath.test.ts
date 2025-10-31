@@ -1,20 +1,10 @@
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type MockedFunction,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from "vitest";
 import { makeTmpFilePath } from "../src/utils/makeTmpFilePath";
 
-const mockRandomBytes = vi.hoisted(() => vi.fn()) as MockedFunction<
-  (size: number) => Buffer
->;
+const mockRandomBytes = vi.hoisted(() => vi.fn()) as MockedFunction<(size: number) => Buffer>;
 
 vi.mock("node:fs");
 vi.mock("node:crypto", () => ({
@@ -38,9 +28,7 @@ describe("makeTmpFilePath", () => {
 
     const result = makeTmpFilePath("test-prefix-", ".txt");
 
-    expect(result).toBe(
-      path.join(tmpdir(), "test-prefix-1234567890abcdef.txt"),
-    );
+    expect(result).toBe(path.join(tmpdir(), "test-prefix-1234567890abcdef.txt"));
     expect(mockExistsSync).toHaveBeenCalledTimes(1);
     expect(mockRandomBytes).toHaveBeenCalledWith(8);
   });
@@ -114,9 +102,7 @@ describe("makeTmpFilePath", () => {
 
     const result = makeTmpFilePath("test-@#$%-", ".backup");
 
-    expect(result).toBe(
-      path.join(tmpdir(), "test-@#$%-0123456789abcdef.backup"),
-    );
+    expect(result).toBe(path.join(tmpdir(), "test-@#$%-0123456789abcdef.backup"));
   });
 
   it("should work with multiple retries finding unique name", () => {

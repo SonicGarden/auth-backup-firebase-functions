@@ -78,16 +78,13 @@ export const restoreAuth = async ({
   hashParams?: HashParams;
 }): Promise<void> => {
   if (projectId == null) throw new Error("projectId must be present.");
-  if (destinationProjectId == null)
-    throw new Error("destinationProjectId must be present.");
+  if (destinationProjectId == null) throw new Error("destinationProjectId must be present.");
 
   // GCS から ローカルに取得
   const gcsClient = new Storage();
   const bucket = gcsClient.bucket(bucketName);
 
-  console.log(
-    `Start to restore auth backup ${backupFilePath} in bucket ${bucketName}.`,
-  );
+  console.log(`Start to restore auth backup ${backupFilePath} in bucket ${bucketName}.`);
   console.log("Downloading auth backup ...");
   const [backupData] = await bucket.file(backupFilePath).download();
 

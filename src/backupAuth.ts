@@ -38,9 +38,7 @@ export const backupAuth = async ({
   const tmpPlaintextFileName = makeTmpFilePath("auth-backup-", ".csv");
   const unlinkFunction = prepareUnlinkFunction(tmpPlaintextFileName);
 
-  console.log(
-    `Start to backup Firebase Authentication to bucket ${bucketName}.`,
-  );
+  console.log(`Start to backup Firebase Authentication to bucket ${bucketName}.`);
   try {
     // ローカルに取得
     console.log("Exporting Firebase Authentication users ...");

@@ -1,20 +1,9 @@
 import type { unlinkSync } from "node:fs";
-import {
-  afterEach,
-  describe,
-  expect,
-  it,
-  type MockedFunction,
-  vi,
-} from "vitest";
+import { afterEach, describe, expect, it, type MockedFunction, vi } from "vitest";
 
-const mockUnlinkSync = vi.hoisted(() => vi.fn()) as MockedFunction<
-  typeof unlinkSync
->;
+const mockUnlinkSync = vi.hoisted(() => vi.fn()) as MockedFunction<typeof unlinkSync>;
 const mockProcessOn = vi.hoisted(() => vi.fn());
-const mockConsoleError = vi
-  .spyOn(console, "error")
-  .mockImplementation(() => {});
+const mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -29,10 +18,7 @@ vi.mock("node:process", () => ({
 }));
 
 // テスト実行前にモジュールをインポート
-import {
-  __resetUnlinkFunctionsForTest,
-  prepareUnlinkFunction,
-} from "../src/utils/unlinkFunction";
+import { __resetUnlinkFunctionsForTest, prepareUnlinkFunction } from "../src/utils/unlinkFunction";
 
 describe("prepareUnlinkFunction", () => {
   afterEach(() => {
@@ -116,10 +102,7 @@ describe("prepareUnlinkFunction", () => {
 
     // console.errorが呼ばれる
     expect(mockConsoleError).toHaveBeenCalledTimes(1);
-    expect(mockConsoleError).toHaveBeenCalledWith(
-      `Failed to unlink ${filePath}\n`,
-      eaccessError,
-    );
+    expect(mockConsoleError).toHaveBeenCalledWith(`Failed to unlink ${filePath}\n`, eaccessError);
 
     // 2回目の呼び出しでもunlinkSyncが呼ばれる（リトライ可能）
     unlinkFn();
@@ -168,8 +151,6 @@ describe("prepareUnlinkFunction", () => {
   it("should throw error for empty file path", () => {
     const filePath = "";
 
-    expect(() => prepareUnlinkFunction(filePath)).toThrow(
-      "filePath must not be empty",
-    );
+    expect(() => prepareUnlinkFunction(filePath)).toThrow("filePath must not be empty");
   });
 });
