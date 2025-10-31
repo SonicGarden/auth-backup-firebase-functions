@@ -8,11 +8,11 @@ vi.mock("@google-cloud/kms", () => {
         cryptoKeyPath: vi.fn((projectId, region, keyringName, keyName) => {
           return `projects/${projectId}/locations/${region}/keyRings/${keyringName}/cryptoKeys/${keyName}`;
         }),
-        encrypt: vi.fn(async ({ _name, plaintext }) => {
+        encrypt: vi.fn(async ({ plaintext }) => {
           // モック実装: 平文をそのまま返す（実際の暗号化はしない）
           return [{ ciphertext: plaintext }];
         }),
-        decrypt: vi.fn(async ({ _name, ciphertext }) => {
+        decrypt: vi.fn(async ({ ciphertext }) => {
           // モック実装: 暗号文をそのまま返す（実際の復号化はしない）
           return [{ plaintext: ciphertext }];
         }),
