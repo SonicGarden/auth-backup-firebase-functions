@@ -1,37 +1,51 @@
-import { unlinkSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
+import type { unlinkSync } from "node:fs";
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  type MockedFunction,
+  vi,
+} from "vitest";
 
-const mockUnlinkSync = vi.hoisted(() => vi.fn()) as MockedFunction<typeof unlinkSync>;
+const mockUnlinkSync = vi.hoisted(() => vi.fn()) as MockedFunction<
+  typeof unlinkSync
+>;
 const mockProcessOn = vi.hoisted(() => vi.fn());
-const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+const mockConsoleError = vi
+  .spyOn(console, "error")
+  .mockImplementation(() => {});
 
-vi.mock('node:fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs')>();
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
   return {
     ...actual,
-    unlinkSync: mockUnlinkSync
+    unlinkSync: mockUnlinkSync,
   };
 });
 
-vi.mock('node:process', () => ({
-  on: mockProcessOn
+vi.mock("node:process", () => ({
+  on: mockProcessOn,
 }));
 
 // テスト実行前にモジュールをインポート
-import { prepareUnlinkFunction, __resetUnlinkFunctionsForTest } from '../src/utils/unlinkFunction';
+import {
+  __resetUnlinkFunctionsForTest,
+  prepareUnlinkFunction,
+} from "../src/utils/unlinkFunction";
 
-describe('prepareUnlinkFunction', () => {
+describe("prepareUnlinkFunction", () => {
   afterEach(() => {
     vi.clearAllMocks();
     __resetUnlinkFunctionsForTest();
   });
 
-  it('should return a function that deletes the specified file', () => {
-    const filePath = '/tmp/test-file.txt';
+  it("should return a function that deletes the specified file", () => {
+    const filePath = "/tmp/test-file.txt";
 
     const unlinkFn = prepareUnlinkFunction(filePath);
 
-    expect(typeof unlinkFn).toBe('function');
+    expect(typeof unlinkFn).toBe("function");
 
     // 関数を実行してファイル削除をテスト
     unlinkFn();
@@ -40,8 +54,8 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
   });
 
-  it('should not delete the same file twice', () => {
-    const filePath = '/tmp/duplicate-test.txt';
+  it("should not delete the same file twice", () => {
+    const filePath = "/tmp/duplicate-test.txt";
 
     const unlinkFn = prepareUnlinkFunction(filePath);
 
@@ -54,10 +68,11 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
   });
 
-  it('should treat ENOENT error as success', () => {
-    const filePath = '/tmp/enoent-test.txt';
-    const enoentError = new Error('ENOENT: no such file or directory');
-    (enoentError as any).code = 'ENOENT';
+  it("should treat ENOENT error as success", () => {
+    const filePath = "/tmp/enoent-test.txt";
+    const enoentError = new Error("ENOENT: no such file or directory");
+    // biome-ignore lint/suspicious/noExplicitAny: unlinkSync が throw するエラーを模すため code が必要
+    (enoentError as any).code = "ENOENT";
 
     mockUnlinkSync.mockImplementation(() => {
       throw enoentError;
@@ -80,10 +95,11 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(1);
   });
 
-  it('should log error for non-ENOENT errors', () => {
-    const filePath = '/tmp/permission-error-test.txt';
-    const eaccessError = new Error('EACCES: permission denied');
-    (eaccessError as any).code = 'EACCES';
+  it("should log error for non-ENOENT errors", () => {
+    const filePath = "/tmp/permission-error-test.txt";
+    const eaccessError = new Error("EACCES: permission denied");
+    // biome-ignore lint/suspicious/noExplicitAny: unlinkSync が throw するエラーを模すため code が必要
+    (eaccessError as any).code = "EACCES";
 
     mockUnlinkSync.mockImplementation(() => {
       throw eaccessError;
@@ -102,7 +118,7 @@ describe('prepareUnlinkFunction', () => {
     expect(mockConsoleError).toHaveBeenCalledTimes(1);
     expect(mockConsoleError).toHaveBeenCalledWith(
       `Failed to unlink ${filePath}\n`,
-      eaccessError
+      eaccessError,
     );
 
     // 2回目の呼び出しでもunlinkSyncが呼ばれる（リトライ可能）
@@ -110,9 +126,9 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
-  it('should handle multiple file paths independently', () => {
-    const filePath1 = '/tmp/file1.txt';
-    const filePath2 = '/tmp/file2.txt';
+  it("should handle multiple file paths independently", () => {
+    const filePath1 = "/tmp/file1.txt";
+    const filePath2 = "/tmp/file2.txt";
 
     const unlinkFn1 = prepareUnlinkFunction(filePath1);
     const unlinkFn2 = prepareUnlinkFunction(filePath2);
@@ -125,13 +141,13 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
-  it('should retry unlinkSync after previous error', () => {
-    const filePath = '/tmp/recovery-test.txt';
+  it("should retry unlinkSync after previous error", () => {
+    const filePath = "/tmp/recovery-test.txt";
 
     // 最初の呼び出しでエラー、2回目は成功
     mockUnlinkSync
       .mockImplementationOnce(() => {
-        throw new Error('First call error');
+        throw new Error("First call error");
       })
       .mockImplementationOnce(() => {
         // 正常終了
@@ -149,9 +165,11 @@ describe('prepareUnlinkFunction', () => {
     expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
-  it('should throw error for empty file path', () => {
-    const filePath = '';
+  it("should throw error for empty file path", () => {
+    const filePath = "";
 
-    expect(() => prepareUnlinkFunction(filePath)).toThrow('filePath must not be empty');
+    expect(() => prepareUnlinkFunction(filePath)).toThrow(
+      "filePath must not be empty",
+    );
   });
 });

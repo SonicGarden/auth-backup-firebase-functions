@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
     "declaration": true,
-    "lib": ["es2018"],
-    "module": "commonjs",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "target": "es2022",
     "noImplicitAny": false,
     "noUnusedLocals": true,
     "outDir": "lib",
+    "strict": true,
     "skipLibCheck": true,
     "stripInternal": true,
-    "target": "es2018",
     "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src"]

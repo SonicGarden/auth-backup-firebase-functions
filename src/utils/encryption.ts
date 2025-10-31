@@ -1,5 +1,5 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { KeyManagementServiceClient } from "@google-cloud/kms";
 
 export interface EncryptDataOptions {
   plaintext: Buffer;
@@ -22,14 +22,14 @@ export async function encryptDEK(
   projectId: string,
   region: string,
   keyringName: string,
-  keyName: string
+  keyName: string,
 ): Promise<Buffer> {
   const kmsClient = new KeyManagementServiceClient();
   const keyPath = kmsClient.cryptoKeyPath(
     projectId,
     region,
     keyringName,
-    keyName
+    keyName,
   );
   const [result] = await kmsClient.encrypt({ name: keyPath, plaintext: dek });
 
@@ -45,14 +45,14 @@ export async function decryptDEK(
   projectId: string,
   region: string,
   keyringName: string,
-  keyName: string
+  keyName: string,
 ): Promise<Buffer> {
   const kmsClient = new KeyManagementServiceClient();
   const keyPath = kmsClient.cryptoKeyPath(
     projectId,
     region,
     keyringName,
-    keyName
+    keyName,
   );
   const [result] = await kmsClient.decrypt({
     name: keyPath,
@@ -78,13 +78,16 @@ export async function encryptData({
   const cipher = createCipheriv("aes-256-gcm", dek, iv);
   cipher.setAAD(Buffer.from("firebase-auth-backup"));
 
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext),
-    cipher.final(),
-  ]);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  const encryptedDek = await encryptDEK(dek, projectId, region, keyringName, keyName);
+  const encryptedDek = await encryptDEK(
+    dek,
+    projectId,
+    region,
+    keyringName,
+    keyName,
+  );
 
   const lengthBytes = Buffer.allocUnsafe(2);
   lengthBytes.writeUInt16BE(encryptedDek.length, 0);
@@ -112,11 +115,17 @@ export async function decryptData({
   const iv = encryptedData.subarray(2 + dekLength, 2 + dekLength + 12);
   const authTag = encryptedData.subarray(
     2 + dekLength + 12,
-    2 + dekLength + 12 + 16
+    2 + dekLength + 12 + 16,
   );
   const ciphertext = encryptedData.subarray(2 + dekLength + 12 + 16);
 
-  const dek = await decryptDEK(encryptedDek, projectId, region, keyringName, keyName);
+  const dek = await decryptDEK(
+    encryptedDek,
+    projectId,
+    region,
+    keyringName,
+    keyName,
+  );
 
   const decipher = createDecipheriv("aes-256-gcm", dek, iv);
   decipher.setAAD(Buffer.from("firebase-auth-backup"));
