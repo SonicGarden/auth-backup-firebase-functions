@@ -1,20 +1,24 @@
-import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { __getUnlinkFunctionsCountForTest, __resetUnlinkFunctionsForTest, prepareUnlinkFunction } from '../src/utils/unlinkFunction';
+import { spawn } from "node:child_process";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  __getUnlinkFunctionsCountForTest,
+  __resetUnlinkFunctionsForTest,
+  prepareUnlinkFunction,
+} from "../src/utils/unlinkFunction";
 
-describe('prepareUnlinkFunction (integration)', () => {
+describe("prepareUnlinkFunction (integration)", () => {
   afterEach(() => {
     // unlinkFunctions 配列をリセット
     __resetUnlinkFunctionsForTest();
   });
-  it('should delete an actual file', () => {
+  it("should delete an actual file", () => {
     // 実際の一時ファイルを作成
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'unlink-test-'));
-    const filePath = path.join(tempDir, 'test-file.txt');
-    writeFileSync(filePath, 'test content');
+    const tempDir = mkdtempSync(path.join(tmpdir(), "unlink-test-"));
+    const filePath = path.join(tempDir, "test-file.txt");
+    writeFileSync(filePath, "test content");
 
     // ファイルが存在することを確認
     expect(existsSync(filePath)).toBe(true);
@@ -37,11 +41,11 @@ describe('prepareUnlinkFunction (integration)', () => {
     expect(__getUnlinkFunctionsCountForTest()).toBe(initialCount);
   });
 
-  it('should not throw error on second call', () => {
+  it("should not throw error on second call", () => {
     // 実際の一時ファイルを作成
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'unlink-test-'));
-    const filePath = path.join(tempDir, 'test-file-2.txt');
-    writeFileSync(filePath, 'test content');
+    const tempDir = mkdtempSync(path.join(tmpdir(), "unlink-test-"));
+    const filePath = path.join(tempDir, "test-file-2.txt");
+    writeFileSync(filePath, "test content");
 
     const initialCount = __getUnlinkFunctionsCountForTest();
 
@@ -64,10 +68,10 @@ describe('prepareUnlinkFunction (integration)', () => {
     expect(__getUnlinkFunctionsCountForTest()).toBe(initialCount);
   });
 
-  it('should not throw error for non-existent file', () => {
+  it("should not throw error for non-existent file", () => {
     // 存在しないファイルパス
-    const tempDir = mkdtempSync(path.join(tmpdir(), 'unlink-test-'));
-    const filePath = path.join(tempDir, 'non-existent-file.txt');
+    const tempDir = mkdtempSync(path.join(tmpdir(), "unlink-test-"));
+    const filePath = path.join(tempDir, "non-existent-file.txt");
 
     // ファイルが存在しないことを確認
     expect(existsSync(filePath)).toBe(false);
@@ -86,18 +90,18 @@ describe('prepareUnlinkFunction (integration)', () => {
     expect(__getUnlinkFunctionsCountForTest()).toBe(initialCount);
   });
 
-  it('should delete files on process exit', async () => {
-    const scriptPath = path.resolve(__dirname, 'scripts', 'unlinkOnExit.ts');
+  it("should delete files on process exit", async () => {
+    const scriptPath = path.resolve(__dirname, "scripts", "unlinkOnExit.ts");
 
     return new Promise<void>((resolve, reject) => {
-      let tempFilePath = '';
-      let stdout = '';
+      let tempFilePath = "";
+      let stdout = "";
 
-      const child = spawn('npx', ['tsx', scriptPath], {
-        stdio: 'pipe'
+      const child = spawn("npx", ["tsx", scriptPath], {
+        stdio: "pipe",
       });
 
-      child.stdout.on('data', (data) => {
+      child.stdout.on("data", (data) => {
         stdout += data.toString();
         const match = stdout.match(/TEMP_FILE_PATH:(.+)/);
         if (match) {
@@ -108,14 +112,14 @@ describe('prepareUnlinkFunction (integration)', () => {
         }
       });
 
-      child.stderr.on('data', (data) => {
+      child.stderr.on("data", (data) => {
         // vscode のターミナルから実行すると debugger 関連のメッセージが stderr に出力されるので無視する
         if (/debugger/i.test(data.toString())) return;
 
         reject(new Error(`Script stderr: ${data.toString()}`));
       });
 
-      child.on('exit', (code) => {
+      child.on("exit", (code) => {
         try {
           // プロセスが正常終了したことを確認
           expect(code).toBe(0);
@@ -132,7 +136,7 @@ describe('prepareUnlinkFunction (integration)', () => {
         }
       });
 
-      child.on('error', (error) => {
+      child.on("error", (error) => {
         reject(new Error(`Failed to spawn process: ${error.message}`));
       });
     });
