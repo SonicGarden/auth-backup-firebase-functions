@@ -1,18 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from "vitest";
 
 // @google-cloud/kms をモック化
-vi.mock('@google-cloud/kms', () => {
+vi.mock("@google-cloud/kms", () => {
   return {
     KeyManagementServiceClient: vi.fn().mockImplementation(() => {
       return {
         cryptoKeyPath: vi.fn((projectId, region, keyringName, keyName) => {
           return `projects/${projectId}/locations/${region}/keyRings/${keyringName}/cryptoKeys/${keyName}`;
         }),
-        encrypt: vi.fn(async ({ name, plaintext }) => {
+        encrypt: vi.fn(async ({ plaintext }) => {
           // モック実装: 平文をそのまま返す（実際の暗号化はしない）
           return [{ ciphertext: plaintext }];
         }),
-        decrypt: vi.fn(async ({ name, ciphertext }) => {
+        decrypt: vi.fn(async ({ ciphertext }) => {
           // モック実装: 暗号文をそのまま返す（実際の復号化はしない）
           return [{ plaintext: ciphertext }];
         }),
@@ -21,19 +21,19 @@ vi.mock('@google-cloud/kms', () => {
   };
 });
 
-import { encryptData, decryptData } from '../src/encryption';
+import { decryptData, encryptData } from "../src/utils/encryption";
 
-describe('encryption', () => {
+describe("encryption", () => {
   const testOptions = {
-    projectId: 'test-project',
-    region: 'test-region',
-    keyringName: 'test-keyring',
-    keyName: 'test-key',
+    projectId: "test-project",
+    region: "test-region",
+    keyringName: "test-keyring",
+    keyName: "test-key",
   };
 
-  describe('encryptData and decryptData', () => {
-    it('should encrypt and decrypt data successfully (round-trip test)', async () => {
-      const originalData = Buffer.from('Hello, World! This is a test message.');
+  describe("encryptData and decryptData", () => {
+    it("should encrypt and decrypt data successfully (round-trip test)", async () => {
+      const originalData = Buffer.from("Hello, World! This is a test message.");
 
       // データを暗号化
       const encryptedData = await encryptData({
@@ -56,8 +56,8 @@ describe('encryption', () => {
       expect(decryptedData.toString()).toBe(originalData.toString());
     });
 
-    it('should handle empty buffer', async () => {
-      const emptyBuffer = Buffer.from('');
+    it("should handle empty buffer", async () => {
+      const emptyBuffer = Buffer.from("");
 
       const encryptedData = await encryptData({
         plaintext: emptyBuffer,
@@ -73,7 +73,7 @@ describe('encryption', () => {
       expect(decryptedData.length).toBe(0);
     });
 
-    it('should handle large data', async () => {
+    it("should handle large data", async () => {
       // 1MB のランダムデータを生成
       const largeData = Buffer.alloc(1024 * 1024);
       for (let i = 0; i < largeData.length; i++) {
@@ -93,8 +93,8 @@ describe('encryption', () => {
       expect(decryptedData).toEqual(largeData);
     });
 
-    it('should handle UTF-8 text with special characters', async () => {
-      const textWithSpecialChars = Buffer.from('こんにちは 🌍 Ñoño café ☕', 'utf-8');
+    it("should handle UTF-8 text with special characters", async () => {
+      const textWithSpecialChars = Buffer.from("こんにちは 🌍 Ñoño café ☕", "utf-8");
 
       const encryptedData = await encryptData({
         plaintext: textWithSpecialChars,
@@ -106,11 +106,11 @@ describe('encryption', () => {
         ...testOptions,
       });
 
-      expect(decryptedData.toString('utf-8')).toBe(textWithSpecialChars.toString('utf-8'));
+      expect(decryptedData.toString("utf-8")).toBe(textWithSpecialChars.toString("utf-8"));
     });
 
-    it('should produce different encrypted output for the same input (due to random IV)', async () => {
-      const data = Buffer.from('Same data');
+    it("should produce different encrypted output for the same input (due to random IV)", async () => {
+      const data = Buffer.from("Same data");
 
       const encrypted1 = await encryptData({
         plaintext: data,
@@ -140,8 +140,8 @@ describe('encryption', () => {
       expect(decrypted2).toEqual(data);
     });
 
-    it('should correctly format the combined data structure', async () => {
-      const data = Buffer.from('Test data for structure verification');
+    it("should correctly format the combined data structure", async () => {
+      const data = Buffer.from("Test data for structure verification");
 
       const encryptedData = await encryptData({
         plaintext: data,
@@ -170,8 +170,8 @@ describe('encryption', () => {
       expect(encryptedPayload.length).toBeGreaterThan(0);
     });
 
-    it('should fail decryption if data is tampered', async () => {
-      const originalData = Buffer.from('Sensitive data');
+    it("should fail decryption if data is tampered", async () => {
+      const originalData = Buffer.from("Sensitive data");
 
       const encryptedData = await encryptData({
         plaintext: originalData,
@@ -180,17 +180,19 @@ describe('encryption', () => {
 
       // 暗号化されたデータを改ざん
       const tamperedData = Buffer.from(encryptedData);
-      tamperedData[tamperedData.length - 1] ^= 0xFF; // 最後のバイトを反転
+      tamperedData[tamperedData.length - 1] ^= 0xff; // 最後のバイトを反転
 
       // 改ざんされたデータの復号はエラーになるはず
-      await expect(decryptData({
-        encryptedData: tamperedData,
-        ...testOptions,
-      })).rejects.toThrow();
+      await expect(
+        decryptData({
+          encryptedData: tamperedData,
+          ...testOptions,
+        }),
+      ).rejects.toThrow();
     });
 
-    it('should fail decryption if auth tag is modified', async () => {
-      const originalData = Buffer.from('Sensitive data');
+    it("should fail decryption if auth tag is modified", async () => {
+      const originalData = Buffer.from("Sensitive data");
 
       const encryptedData = await encryptData({
         plaintext: originalData,
@@ -201,13 +203,15 @@ describe('encryption', () => {
       const tamperedData = Buffer.from(encryptedData);
       const dekLength = tamperedData.readUInt16BE(0);
       const authTagStart = 2 + dekLength + 12;
-      tamperedData[authTagStart] ^= 0xFF; // 認証タグの最初のバイトを反転
+      tamperedData[authTagStart] ^= 0xff; // 認証タグの最初のバイトを反転
 
       // 認証タグが改ざんされたデータの復号はエラーになるはず
-      await expect(decryptData({
-        encryptedData: tamperedData,
-        ...testOptions,
-      })).rejects.toThrow();
+      await expect(
+        decryptData({
+          encryptedData: tamperedData,
+          ...testOptions,
+        }),
+      ).rejects.toThrow();
     });
   });
 });

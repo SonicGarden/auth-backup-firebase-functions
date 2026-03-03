@@ -5,8 +5,5 @@
     "sourceMap": true
   },
   "extends": "./tsconfig.release.json",
-  "include": [
-    "src",
-    "test"
-  ]
+  "include": ["src", "test"]
 }

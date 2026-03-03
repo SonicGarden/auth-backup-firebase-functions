@@ -1,2 +1,2 @@
-export * from './backupAuth';
-export * from './restoreAuth';
+export * from "./backupAuth";
+export * from "./restoreAuth";
