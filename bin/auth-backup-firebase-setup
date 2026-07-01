@@ -36,13 +36,21 @@ KEYRING_NAME=firebase-authentication-keyring
 KEY_NAME=firebase-authentication-backup-key
 echo "----- Creating KMS key: ${KEY_NAME} in keyring: ${KEYRING_NAME}"
 
+if date -I -d "90 days" >/dev/null 2>&1; then
+  # GNU date (Linux)
+  NEXT_ROTATION_DATE="$(date -I -d "90 days")"
+else
+  # BSD date (macOS)
+  NEXT_ROTATION_DATE="$(date -v +90d -I)"
+fi
+
 gcloud services enable cloudkms.googleapis.com --project "${PROJECT_ID}"
 gcloud kms keyrings create --location="${KMS_LOCATION}" "${KEYRING_NAME}" --project "${PROJECT_ID}"
 gcloud kms keys create --location="${KMS_LOCATION}" \
   --keyring="${KEYRING_NAME}" \
   --purpose=encryption \
   --rotation-period=90d \
-  --next-rotation-time="$(date -I -d "90 days")T00:00:00Z" \
+  --next-rotation-time="${NEXT_ROTATION_DATE}T00:00:00Z" \
   "${KEY_NAME}" \
   --project "${PROJECT_ID}"
 
