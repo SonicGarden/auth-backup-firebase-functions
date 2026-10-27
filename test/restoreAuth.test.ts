@@ -9,12 +9,14 @@ vi.mock("firebase-tools", () => ({
   auth: { export: vi.fn(), import: importMock },
 }));
 
+// restoreAuth は new Storage() で呼ぶ。vitest 4 以降はアロー関数の mockImplementation を
+// new で呼べないため、class で書く
 vi.mock("@google-cloud/storage", () => ({
-  Storage: vi.fn().mockImplementation(() => ({
-    bucket: () => ({
-      file: () => ({ download: async () => [backupCsv] }),
-    }),
-  })),
+  Storage: class {
+    bucket() {
+      return { file: () => ({ download: async () => [backupCsv] }) };
+    }
+  },
 }));
 
 import { restoreAuth } from "../src/restoreAuth";
@@ -70,6 +72,19 @@ describe("restoreAuth", () => {
     });
 
     expect(importMock).toHaveBeenCalledWith(expect.any(String), { project: "destination-project" });
+  });
+
+  it("復元に成功したら一時ファイルを消す", async () => {
+    await restoreAuth({
+      region: "asia-northeast1",
+      backupFilePath: "backup.csv",
+      projectId: "source-project",
+      encrypted: false,
+      destinationProjectId: "destination-project",
+    });
+
+    expect(importedFile).toBeDefined();
+    expect(existsSync(importedFile?.path ?? "")).toBe(false);
   });
 
   it("auth.import が失敗しても一時ファイルを消す", async () => {

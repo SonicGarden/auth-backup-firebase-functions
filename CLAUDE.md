@@ -69,4 +69,4 @@ npm publish --access=public    # npm に公開
 
 ## テスト実行
 
-GitHub Actions で PR 時に自動テスト（Node.js 20, 22, 24）
+GitHub Actions で PR 時に自動テスト（Node.js 22, 24）

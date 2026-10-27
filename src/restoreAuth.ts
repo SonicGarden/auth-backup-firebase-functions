@@ -6,7 +6,7 @@ import { decryptData } from "./utils/encryption";
 import { makeTmpFilePath } from "./utils/makeTmpFilePath";
 import { prepareUnlinkFunction } from "./utils/unlinkFunction";
 
-// SEE: https://github.com/firebase/firebase-tools/blob/v14.15.1/src/accountImporter.ts
+// SEE: https://github.com/firebase/firebase-tools/blob/v15.34.1/src/accountImporter.ts
 export type HashAlgo =
   | "HMAC_SHA512"
   | "HMAC_SHA256"
