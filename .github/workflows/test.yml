@@ -11,6 +11,7 @@ jobs:
         node-version:
           - 20
           - 22
+          - 24
     steps:
       - name: レポジトリのチェックアウト
         uses: actions/checkout@v5
