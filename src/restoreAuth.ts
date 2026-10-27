@@ -47,7 +47,7 @@ const uploadAuth = async ({
 
     // Authの復元
     console.log("Uploading auth backup to Firebase Authentication ...");
-    await auth.upload(tmpFilePath, {
+    await auth.import(tmpFilePath, {
       project: destinationProjectId,
       ...hashParams,
     });
