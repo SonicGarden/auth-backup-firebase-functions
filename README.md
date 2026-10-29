@@ -2,6 +2,8 @@
 
 Firebase Authentication Backup for Firebase Cloud Functions
 
+版ごとの変更点（互換性のない変更を含む）は [CHANGELOG](https://github.com/SonicGarden/auth-backup-firebase-functions/blob/rc/CHANGELOG.md) を参照してください。
+
 ## Installation
 
 ```sh
