@@ -8,11 +8,14 @@ fi
 
 PROJECT_ID=$1
 KMS_LOCATION=${2:-asia-northeast1} # https://cloud.google.com/kms/docs/locations
-BUCKET_LOCATION=${3:-ASIA} # https://cloud.google.com/storage/docs/locations
+# バケットは KMS の鍵と同じリージョンに置く。ASIA のようなマルチリージョンは日本の外にも保存されうる。
+# デュアルリージョン（ASIA1 など）にしても、鍵が 1 リージョンにしかないので、そのリージョンの障害時には
+# 別の場所のバックアップを読めても復号できず、冗長にした意味がない。
+BUCKET_LOCATION=${3:-asia-northeast1} # https://cloud.google.com/storage/docs/locations
 
 # For Tokyo region:
 # KMS_LOCATION=asia-northeast1
-# BUCKET_LOCATION=ASIA
+# BUCKET_LOCATION=asia-northeast1
 #
 # For Oregon region:
 # KMS_LOCATION=us-west1
