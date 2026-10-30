@@ -14,7 +14,8 @@
   "license": "MIT",
   "files": [
     "lib",
-    "bin"
+    "bin",
+    "CHANGELOG.md"
   ],
   "bin": {
     "auth-backup-firebase-setup": "./bin/auth-backup-firebase-setup"

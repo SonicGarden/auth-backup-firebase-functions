@@ -30,6 +30,8 @@ npm run typecheck && npm test
 ```
 
 ### リリース
+利用者に影響する変更（互換性のない変更、バックアップの形式の変化など）があれば、先に `CHANGELOG.md` に書く。
+
 ```bash
 npm version patch              # パッチバージョン更新（major/minor も可）
 git push origin tags/vX.X.X    # タグをプッシュ
