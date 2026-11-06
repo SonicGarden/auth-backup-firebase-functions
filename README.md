@@ -2,6 +2,8 @@
 
 Firebase Authentication Backup for Firebase Cloud Functions
 
+版ごとの変更点（互換性のない変更を含む）は [CHANGELOG](https://github.com/SonicGarden/auth-backup-firebase-functions/blob/rc/CHANGELOG.md) を参照してください。
+
 ## Installation
 
 ```sh
@@ -29,11 +31,12 @@ auth-backup-firebase-setup <PROJECT_ID> [<KMS_LOCATION> <BUCKET_LOCATION>]
 $ export PROJECT_ID=<YOUR_PROJECT_ID>
 $ gcloud services enable cloudkms.googleapis.com --project "${PROJECT_ID}"
 $ gcloud kms keyrings create --location=asia-northeast1 firebase-authentication-keyring --project "${PROJECT_ID}"
+$ export NEXT_ROTATION_DATE="$(date -I -d "90 days" 2>/dev/null || date -v +90d -I)"
 $ gcloud kms keys create --location=asia-northeast1 \
   --keyring=firebase-authentication-keyring \
   --purpose=encryption \
   --rotation-period=90d \
-  --next-rotation-time="$(date -I -d "90 days")T00:00:00Z" \
+  --next-rotation-time="${NEXT_ROTATION_DATE}T00:00:00Z" \
   firebase-authentication-backup-key \
   --project "${PROJECT_ID}"
 ```
@@ -41,12 +44,13 @@ $ gcloud kms keys create --location=asia-northeast1 \
 ### Cloud Storage setup
 
 バックアップの保存先である Storage のバケットを作成する。
+データを日本の外に置かないよう、KMS の鍵と同じ東京リージョン（`asia-northeast1`）に作る。
 
 ```shell
 $ gcloud storage buckets create "gs://${PROJECT_ID}-authentication-backups" \
   --project="${PROJECT_ID}" \
   --default-storage-class=COLDLINE \
-  --location=ASIA \
+  --location=asia-northeast1 \
   --uniform-bucket-level-access
 ```
 

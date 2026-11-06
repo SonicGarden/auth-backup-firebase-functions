@@ -30,6 +30,8 @@ npm run typecheck && npm test
 ```
 
 ### リリース
+利用者に影響する変更（互換性のない変更、バックアップの形式の変化など）があれば、先に `CHANGELOG.md` に書く。
+
 ```bash
 npm version patch              # パッチバージョン更新（major/minor も可）
 git push origin tags/vX.X.X    # タグをプッシュ
@@ -47,7 +49,7 @@ npm publish --access=public    # npm に公開
 
 - **src/restoreAuth.ts**: GCS から Firebase Auth データを復元
   - 暗号化されたデータの復号化
-  - firebase-tools の auth.upload を使用してデータ復元
+  - firebase-tools の auth.import を使用してデータ復元
   - パスワードハッシュパラメータのサポート
 
 - **src/encryption.ts**: KMS を使用した暗号化・復号化処理
@@ -59,7 +61,6 @@ npm publish --access=public    # npm に公開
 - **firebase-tools**: Auth データのエクスポート/インポート
 - **@google-cloud/storage**: GCS へのファイル保存・取得
 - **@google-cloud/kms**: データ暗号化・復号化
-- **firebase-admin**: Firebase プロジェクト管理
 
 ### デフォルト設定
 
@@ -70,4 +71,4 @@ npm publish --access=public    # npm に公開
 
 ## テスト実行
 
-GitHub Actions で PR 時に自動テスト（Node.js 20, 22）
+GitHub Actions で PR 時に自動テスト（Node.js 22, 24）
