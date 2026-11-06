@@ -44,12 +44,13 @@ $ gcloud kms keys create --location=asia-northeast1 \
 ### Cloud Storage setup
 
 バックアップの保存先である Storage のバケットを作成する。
+データを日本の外に置かないよう、KMS の鍵と同じ東京リージョン（`asia-northeast1`）に作る。
 
 ```shell
 $ gcloud storage buckets create "gs://${PROJECT_ID}-authentication-backups" \
   --project="${PROJECT_ID}" \
   --default-storage-class=COLDLINE \
-  --location=ASIA \
+  --location=asia-northeast1 \
   --uniform-bucket-level-access
 ```
 
